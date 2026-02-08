@@ -88,13 +88,13 @@ module tt_um_andreasp00 (
         .sample_tick_i  (sample_tick),
 
         // Register file
-        .freq_lo_i      (freq_lo_pack),
-        .freq_hi_i      (freq_hi_pack),
-        .pw_lo_i        (pw_lo_pack),
-        .pw_hi_i        (pw_hi_pack),
-        .control_i      (control_pack),
-        .ad_i           (ad_pack),
-        .sr_i           (sr_pack),
+        .freq_lo_i      (freq_lo_pack[2:0]),
+        .freq_hi_i      (freq_hi_pack[2:0]),
+        .pw_lo_i        (pw_lo_pack[2:0]),
+        .pw_hi_i        (pw_hi_pack[2:0]),
+        .control_i      (control_pack[2:0]),
+        .ad_i           (ad_pack[2:0]),
+        .sr_i           (sr_pack[2:0]),
 
         // Voice generator
         .voice_ready_i  (voice_ready),

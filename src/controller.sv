@@ -45,13 +45,13 @@ module controller (
   input   logic               sample_tick_i,  // 50 kHz tick
 
   // Register file
-  input logic [15:0][7:0]     freq_lo_i,
-  input logic [15:0][7:0]     freq_hi_i,
-  input logic [15:0][7:0]     pw_lo_i,
-  input logic [15:0][7:0]     pw_hi_i,
-  input logic [15:0][7:0]     control_i,
-  input logic [15:0][7:0]     ad_i,
-  input logic [15:0][7:0]     sr_i,
+  input logic [2:0][7:0]     freq_lo_i,
+  input logic [2:0][7:0]     freq_hi_i,
+  input logic [2:0][7:0]     pw_lo_i,
+  input logic [2:0][7:0]     pw_hi_i,
+  input logic [2:0][7:0]     control_i,
+  input logic [2:0][7:0]     ad_i,
+  input logic [2:0][7:0]     sr_i,
 
   // Voice generator
   input   logic               voice_ready_i,  // Voice ready
