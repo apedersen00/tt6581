@@ -28,11 +28,11 @@ project:
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
 pinout:
   # Inputs
-  ui[0]: "clk"
-  ui[1]: "rst_n"
-  ui[2]: "sclk"
-  ui[3]: "cs"
-  ui[4]: "mosi"
+  ui[0]: "sclk"
+  ui[1]: "rstcs_n"
+  ui[2]: "mosi"
+  ui[3]: ""
+  ui[4]: ""
   ui[5]: ""
   ui[6]: ""
   ui[7]: ""
@@ -40,12 +40,12 @@ pinout:
   # Outputs
   uo[0]: "miso"
   uo[1]: "wave"
-  uo[2]: ""
-  uo[3]: ""
-  uo[4]: ""
-  uo[5]: ""
-  uo[6]: ""
-  uo[7]: ""
+  uo[2]: "wave"
+  uo[3]: "wave"
+  uo[4]: "wave"
+  uo[5]: "wave"
+  uo[6]: "wave"
+  uo[7]: "wave"
 
   # Bidirectional pins
   uio[0]: ""

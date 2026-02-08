@@ -25,12 +25,18 @@
 module tt_um_andreasp00 (
   input   logic       clk,        // System clock (50 MHz)
   input   logic       rst_n,      // Active low reset
-  input   logic       sclk,       // SPI Clock
-  input   logic       cs,         // SPI Chip select
-  input   logic       mosi,       // SPI MOSI
-  output  logic       miso,       // SPI MISO
-  output  logic [9:0] wave
+  input   logic       ena,
+  input   logic [7:0] ui_in,
+  output  logic [7:0] uo_out
 );
+
+  logic       sclk;       // SPI Clock
+  logic       cs;         // SPI Chip select
+  logic       mosi;       // SPI MOSI
+
+  assign sclk = ui_in[0];
+  assign cs   = ui_in[1];
+  assign mosi = ui_in[2];
 
   // Internal signals
   logic [7:0] reg_rdata;
@@ -73,7 +79,7 @@ module tt_um_andreasp00 (
     .sclk_i         ( sclk          ),
     .cs_i           ( cs            ),
     .mosi_i         ( mosi          ),
-    .miso_o         ( miso          ),
+    .miso_o         ( uo_out[0]     ),
     .reg_rdata_i    ( reg_rdata     ),
     .reg_wdata_o    ( reg_wdata     ),
     .reg_addr_o     ( reg_addr      ),
@@ -135,6 +141,6 @@ module tt_um_andreasp00 (
     .wave_o         ( voice_wave    )
   );
 
-  assign wave = mix_out[9:0];
+  assign uo_out[7:1] = mix_out[6:0];
 
 endmodule
