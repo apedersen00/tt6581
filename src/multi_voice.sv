@@ -28,7 +28,7 @@ module multi_voice (
   input   logic         clk_i,        // 50 MHz
   input   logic         rst_ni,       // Active low reset
   input   logic         start_i,      // Start generating voice
-  input   logic [3:0]   act_voice_i,  // Active voice 0..15
+  input   logic [1:0]   act_voice_i,  // Active voice 0..2
   input   logic [15:0]  freq_word_i,  // Frequency control word
   input   logic [11:0]  pw_word_i,    // Pulse width control
   input   logic [3:0]   wave_sel_i,   // 0010: Saw, 0001: Tri, 0100: Pulse, 1000: Noise
@@ -39,8 +39,8 @@ module multi_voice (
   /************************************
    * Registers (voice states)
    ***********************************/
-  logic [28:0]  phase_regs [15:0];
-  logic [22:0]  lfsr_regs [15:0];
+  logic [28:0]  phase_regs [2:0];
+  logic [22:0]  lfsr_regs [2:0];
   logic [9:0] wave_saw, wave_tri, wave_pulse, wave_noise;
 
   logic [28:0]  cur_phase, nxt_phase;
@@ -80,7 +80,7 @@ module multi_voice (
     if (!rst_ni) begin
       ready_o <= 1'b0;
 
-      for (int i = 0; i < 16; i++) begin
+      for (int i = 0; i < 3; i++) begin
         phase_regs[i] <= '0;
         lfsr_regs[i]  <= 23'h7FFFFF;
       end

@@ -32,14 +32,14 @@ module tt_um_andreasp00 (
     logic       reg_we;
     logic       sample_tick;
 
-    logic [15:0][7:0] freq_lo_pack, freq_hi_pack;
-    logic [15:0][7:0] pw_lo_pack, pw_hi_pack;
-    logic [15:0][7:0] control_pack, ad_pack, sr_pack;
+    logic [2:0][7:0] freq_lo_pack, freq_hi_pack;
+    logic [2:0][7:0] pw_lo_pack, pw_hi_pack;
+    logic [2:0][7:0] control_pack, ad_pack, sr_pack;
 
     logic        voice_ready;
     logic [9:0]  voice_wave;
     logic        voice_start;
-    logic [3:0]  voice_idx;
+    logic [1:0]  voice_idx;
     logic [15:0] voice_freq;
     logic [11:0] voice_pw;
     logic [3:0]  voice_sel;
@@ -88,13 +88,13 @@ module tt_um_andreasp00 (
         .sample_tick_i  (sample_tick),
 
         // Register file
-        .freq_lo_i      (freq_lo_pack[2:0]),
-        .freq_hi_i      (freq_hi_pack[2:0]),
-        .pw_lo_i        (pw_lo_pack[2:0]),
-        .pw_hi_i        (pw_hi_pack[2:0]),
-        .control_i      (control_pack[2:0]),
-        .ad_i           (ad_pack[2:0]),
-        .sr_i           (sr_pack[2:0]),
+        .freq_lo_i      (freq_lo_pack),
+        .freq_hi_i      (freq_hi_pack),
+        .pw_lo_i        (pw_lo_pack),
+        .pw_hi_i        (pw_hi_pack),
+        .control_i      (control_pack),
+        .ad_i           (ad_pack),
+        .sr_i           (sr_pack),
 
         // Voice generator
         .voice_ready_i  (voice_ready),

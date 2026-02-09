@@ -57,7 +57,7 @@ module controller (
   input   logic               voice_ready_i,  // Voice ready
   input   logic [9:0]         voice_wave_i,   // Raw generated voice
   output  logic               voice_start_o,  // Start voice gen
-  output  logic [3:0]         voice_idx_o,    // Active voice index
+  output  logic [1:0]         voice_idx_o,    // Active voice index
   output  logic [15:0]        voice_freq_o,   // Active voice freq
   output  logic [11:0]        voice_pw_o,     // Active voice pulse width
   output  logic [3:0]         voice_wave_o,   // Active voice select
@@ -69,7 +69,7 @@ module controller (
   /************************************
    * Signals and assignments
    ***********************************/
-  logic [3:0] cur_voice;
+  logic [1:0] cur_voice;
   logic signed [19:0] mix_accum;
 
   assign voice_idx_o  = cur_voice;
@@ -100,7 +100,7 @@ module controller (
       STATE_IDLE:       nxt_state = sample_tick_i ? STATE_GENERATE : STATE_IDLE;
       STATE_GENERATE:   nxt_state = STATE_ACCUMULATE;
       STATE_ACCUMULATE: begin
-        if      (voice_ready_i && cur_voice == 15) nxt_state = STATE_DONE;
+        if      (voice_ready_i && cur_voice == 2)  nxt_state = STATE_DONE;
         else if (voice_ready_i)                    nxt_state = STATE_GENERATE;
         else                                       nxt_state = STATE_ACCUMULATE;
       end
