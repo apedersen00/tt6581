@@ -39,11 +39,11 @@ module multi_voice (
   /************************************
    * Registers (voice states)
    ***********************************/
-  logic [28:0]  phase_regs [2:0];
+  logic [18:0]  phase_regs [2:0];
   logic [22:0]  lfsr_regs [2:0];
   logic [9:0] wave_saw, wave_tri, wave_pulse, wave_noise;
 
-  logic [28:0]  cur_phase, nxt_phase;
+  logic [18:0]  cur_phase, nxt_phase;
   logic [22:0]  cur_lfsr, nxt_lfsr;
   logic         noise_en;
 
@@ -104,13 +104,13 @@ module multi_voice (
 
   // TODO: Fix this. Instead of scaling freq_word, fix the calculation and bits required
   // due to now only updating it 50 kHz (on sample_tick)
-  assign nxt_phase = cur_phase + {3'd0, freq_word_i, 10'd0};
+  assign nxt_phase = cur_phase + {3'd0, freq_word_i};
 
-  assign wave_saw   = nxt_phase[28:19];
-  assign wave_tri   = nxt_phase[28] ? ~nxt_phase[27:18] : nxt_phase[27:18];
-  assign wave_pulse = (nxt_phase[28:17] >= pw_word_i) ? 10'd1023 : 10'd0;
+  assign wave_saw   = nxt_phase[18:9];
+  assign wave_tri   = nxt_phase[18] ? ~nxt_phase[17:8] : nxt_phase[17:8];
+  assign wave_pulse = (nxt_phase[18:7] >= pw_word_i) ? 10'd1023 : 10'd0;
 
-  assign noise_en = (cur_phase[19] == 1'b0 && nxt_phase[19] == 1'b1);
+  assign noise_en = (cur_phase[9] == 1'b0 && nxt_phase[9] == 1'b1);
 
   always_comb begin
     nxt_lfsr = cur_lfsr;

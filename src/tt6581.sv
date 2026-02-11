@@ -43,7 +43,16 @@ module tt_um_andreasp00 (
     logic [15:0] voice_freq;
     logic [11:0] voice_pw;
     logic [3:0]  voice_sel;
-    
+      
+    logic         env_ready;
+    logic         env_start;
+    logic         env_gate;
+    logic [9:0]   env_wave;
+    logic [3:0]   env_attack;
+    logic [3:0]   env_decay;
+    logic [3:0]   env_sustain;
+    logic [3:0]   env_release;
+
     logic [15:0] mix_out;
     logic        mix_valid;
 
@@ -98,28 +107,52 @@ module tt_um_andreasp00 (
 
         // Voice generator
         .voice_ready_i  (voice_ready),
-        .voice_wave_i   (voice_wave),
+        .voice_wave_i   (env_wave),
         .voice_start_o  (voice_start),
         .voice_idx_o    (voice_idx),
         .voice_freq_o   (voice_freq),
         .voice_pw_o     (voice_pw),
         .voice_wave_o   (voice_sel),
 
+        // Envelope generator
+        .env_ready_i    ( env_ready     ),
+        .env_start_o    ( env_start     ),
+        .env_gate_o     ( env_gate      ),
+        .env_attack_o   ( env_attack    ),
+        .env_decay_o    ( env_decay     ),
+        .env_sustain_o  ( env_sustain   ),
+        .env_release_o  ( env_release   ),
+
         .audio_valid_o  (mix_valid),
         .audio_o        (mix_out)
     );
 
-    multi_voice multi_voice_inst (
-        .clk_i       (clk),
-        .rst_ni      (rst_n),
-        .start_i     (voice_start),
-        .act_voice_i (voice_idx),
-        .freq_word_i (voice_freq),
-        .pw_word_i   (voice_pw),
-        .wave_sel_i  (voice_sel),
-        .ready_o     (voice_ready),
-        .wave_o      (voice_wave)
-    );
+  multi_voice multi_voice_inst (
+    .clk_i          ( clk           ),
+    .rst_ni         ( rst_n         ),
+    .start_i        ( voice_start   ),
+    .act_voice_i    ( voice_idx     ),
+    .freq_word_i    ( voice_freq    ),
+    .pw_word_i      ( voice_pw      ),
+    .wave_sel_i     ( voice_sel     ),
+    .ready_o        ( voice_ready   ),
+    .wave_o         ( voice_wave    )
+  );
+
+  envelope envelope_inst (
+    .clk_i          ( clk           ),
+    .rst_ni         ( rst_n         ),
+    .start_i        ( env_start     ),
+    .wave_i         ( voice_wave    ),
+    .voice_idx_i    ( voice_idx     ),
+    .gate_i         ( env_gate      ),
+    .attack_i       ( env_attack    ),
+    .decay_i        ( env_decay     ),
+    .sustain_i      ( env_sustain   ),
+    .release_i      ( env_release   ),
+    .ready_o        ( env_ready     ),
+    .wave_o         ( env_wave      )
+  );
 
     assign uo_out[7:1] = mix_out[15:9];
 

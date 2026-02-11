@@ -34,6 +34,15 @@
     .voice_pw_o     (),
     .voice_wave_o   (),
 
+    // Envelope generator
+    .env_ready_i    (),
+    .env_start_o    (),
+    .env_gate_o     (),
+    .env_attack_o   (),
+    .env_decay_o    (),
+    .env_sustain_o  (),
+    .env_release_o  (),
+
     .audio_valid_o  (),
     .audio_o        ()
   );
@@ -62,6 +71,15 @@ module controller (
   output  logic [11:0]        voice_pw_o,     // Active voice pulse width
   output  logic [3:0]         voice_wave_o,   // Active voice select
 
+  // Envelope generator
+  input   logic               env_ready_i,
+  output  logic               env_start_o,
+  output  logic               env_gate_o,
+  output  logic [3:0]         env_attack_o,
+  output  logic [3:0]         env_decay_o,
+  output  logic [3:0]         env_sustain_o,
+  output  logic [3:0]         env_release_o,
+
   output  logic               audio_valid_o,
   output  logic [15:0]        audio_o
 );
@@ -77,13 +95,20 @@ module controller (
   assign voice_pw_o   = {pw_hi_i[cur_voice][3:0], pw_lo_i[cur_voice]};
   assign voice_wave_o = control_i[cur_voice][7:4];
 
+  assign env_gate_o     = control_i[cur_voice][0];
+  assign env_attack_o   = ad_i[cur_voice][7:4];
+  assign env_decay_o    = ad_i[cur_voice][3:0];
+  assign env_sustain_o  = sr_i[cur_voice][7:4];
+  assign env_release_o  = sr_i[cur_voice][3:0];
+
   /************************************
    * State machine
    ***********************************/
-  typedef enum logic [1:0] {
-    STATE_IDLE,       // Wait for sample tick
-    STATE_GENERATE,   // Generate voice
-    STATE_ACCUMULATE, // Add to mix
+  typedef enum logic [2:0] {
+    STATE_IDLE, // Wait for sample tick
+    STATE_SYN,  // Synthesize raw wave
+    STATE_ENV,  // Apply envelope
+    STATE_ACC,  // Add to mix
     STATE_DONE
   } state_e;
 
@@ -95,16 +120,18 @@ module controller (
   end
 
   always_comb begin
-    nxt_state = STATE_IDLE;
+    nxt_state = cur_state;
     unique case (cur_state)
-      STATE_IDLE:       nxt_state = sample_tick_i ? STATE_GENERATE : STATE_IDLE;
-      STATE_GENERATE:   nxt_state = STATE_ACCUMULATE;
-      STATE_ACCUMULATE: begin
-        if      (voice_ready_i && cur_voice == 2)  nxt_state = STATE_DONE;
-        else if (voice_ready_i)                    nxt_state = STATE_GENERATE;
-        else                                       nxt_state = STATE_ACCUMULATE;
+      STATE_IDLE:       nxt_state = sample_tick_i ? STATE_SYN  : STATE_IDLE;
+      STATE_SYN:        nxt_state = voice_ready_i ? STATE_ENV  : STATE_SYN;
+      STATE_ENV:        nxt_state = STATE_ACC;
+      STATE_ACC: begin
+        nxt_state = STATE_ACC;
+        if (env_ready_i) begin
+          nxt_state = (cur_voice == 2) ? STATE_DONE : STATE_SYN;
+        end
       end
-      STATE_DONE:       nxt_state = STATE_IDLE;
+      STATE_DONE :      nxt_state = STATE_IDLE;
       default     : ;
     endcase
   end
@@ -118,8 +145,11 @@ module controller (
       mix_accum     <= '0;
       audio_o       <= '0;
       audio_valid_o <= '0;
+      env_start_o   <= '0;
+      voice_start_o <= '0;
     end else begin
-      audio_valid_o <= 1'b0;
+      env_start_o   <= '0;
+      voice_start_o <= '0;
 
       unique case (cur_state)
 
@@ -130,13 +160,16 @@ module controller (
           end
         end
 
-        STATE_GENERATE: begin
+        STATE_SYN: begin
           voice_start_o <= 1'b1;
         end
 
-        STATE_ACCUMULATE: begin
-          voice_start_o <= 1'b0;
-          if (voice_ready_i) begin
+        STATE_ENV: begin
+          env_start_o   <= 1'b1;
+        end
+
+        STATE_ACC: begin
+          if (env_ready_i) begin
             mix_accum <= mix_accum + {10'd0, voice_wave_i >> 2};
             cur_voice <= cur_voice + 1;
           end
