@@ -158,42 +158,42 @@ module envelope (
     decay_lut  = 0;
 
     unique case (attack_i)
-      0'h0: attack_lut = 18'd167116;
-      0'h1: attack_lut = 18'd41779;
-      0'h2: attack_lut = 18'd20889;
-      0'h3: attack_lut = 18'd13926;
-      0'h4: attack_lut = 18'd8795;
-      0'h5: attack_lut = 18'd5968;
-      0'h6: attack_lut = 18'd4915;
-      0'h7: attack_lut = 18'd4177;
-      0'h8: attack_lut = 18'd3342;
-      0'h9: attack_lut = 18'd1336;
-      0'hA: attack_lut = 18'd668;
-      0'hB: attack_lut = 18'd417;
-      0'hC: attack_lut = 18'd334;
-      0'hD: attack_lut = 18'd111;
-      0'hE: attack_lut = 18'd66;
-      0'hF: attack_lut = 18'd41;
+      4'h0: attack_lut = 18'd167116;
+      4'h1: attack_lut = 18'd41779;
+      4'h2: attack_lut = 18'd20889;
+      4'h3: attack_lut = 18'd13926;
+      4'h4: attack_lut = 18'd8795;
+      4'h5: attack_lut = 18'd5968;
+      4'h6: attack_lut = 18'd4915;
+      4'h7: attack_lut = 18'd4177;
+      4'h8: attack_lut = 18'd3342;
+      4'h9: attack_lut = 18'd1336;
+      4'hA: attack_lut = 18'd668;
+      4'hB: attack_lut = 18'd417;
+      4'hC: attack_lut = 18'd334;
+      4'hD: attack_lut = 18'd111;
+      4'hE: attack_lut = 18'd66;
+      4'hF: attack_lut = 18'd41;
       default: ;
     endcase
 
     unique case (decay_release)
-      0'h0: decay_lut = 18'd139262;
-      0'h1: decay_lut = 18'd34815;
-      0'h2: decay_lut = 18'd17407;
-      0'h3: decay_lut = 18'd11605;
-      0'h4: decay_lut = 18'd7327;
-      0'h5: decay_lut = 18'd4972;
-      0'h6: decay_lut = 18'd4095;
-      0'h7: decay_lut = 18'd3480;
-      0'h8: decay_lut = 18'd2785;
-      0'h9: decay_lut = 18'd1112;
-      0'hA: decay_lut = 18'd555;
-      0'hB: decay_lut = 18'd347;
-      0'hC: decay_lut = 18'd277;
-      0'hD: decay_lut = 18'd92;
-      0'hE: decay_lut = 18'd55;
-      0'hF: decay_lut = 18'd32;
+      4'h0: decay_lut = 18'd139262;
+      4'h1: decay_lut = 18'd34815;
+      4'h2: decay_lut = 18'd17407;
+      4'h3: decay_lut = 18'd11605;
+      4'h4: decay_lut = 18'd7327;
+      4'h5: decay_lut = 18'd4972;
+      4'h6: decay_lut = 18'd4095;
+      4'h7: decay_lut = 18'd3480;
+      4'h8: decay_lut = 18'd2785;
+      4'h9: decay_lut = 18'd1112;
+      4'hA: decay_lut = 18'd555;
+      4'hB: decay_lut = 18'd347;
+      4'hC: decay_lut = 18'd277;
+      4'hD: decay_lut = 18'd92;
+      4'hE: decay_lut = 18'd55;
+      4'hF: decay_lut = 18'd32;
     endcase
   end
 

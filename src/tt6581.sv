@@ -62,70 +62,70 @@ module tt_um_andreasp00 (
         .tick_o (sample_tick)
     );
 
-    spi spi_inst (
-        .clk_i       (clk),
-        .rst_ni      (rst_n),
-        .sclk_i      (sclk),
-        .cs_i        (cs),
-        .mosi_i      (mosi),
-        .miso_o      (miso),
-        .reg_rdata_i (reg_rdata),
-        .reg_wdata_o (reg_wdata),
-        .reg_addr_o  (reg_addr),
-        .reg_we_o    (reg_we)
-    );
+  spi spi_inst (
+    .clk_i          ( clk           ),
+    .rst_ni         ( rst_n         ),
+    .sclk_i         ( sclk          ),
+    .cs_i           ( cs            ),
+    .mosi_i         ( mosi          ),
+    .miso_o         ( miso          ),
+    .reg_rdata_i    ( reg_rdata     ),
+    .reg_wdata_o    ( reg_wdata     ),
+    .reg_addr_o     ( reg_addr      ),
+    .reg_we_o       ( reg_we        )
+  );
 
-    reg_file reg_file_inst (
-        .clk_i      (clk),
-        .rst_ni     (rst_n),
-        .addr_i     (reg_addr),
-        .wdata_i    (reg_wdata),
-        .we_i       (reg_we),
-        .rdata_o    (reg_rdata),
-        .freq_lo_o  (freq_lo_pack),
-        .freq_hi_o  (freq_hi_pack),
-        .pw_lo_o    (pw_lo_pack),
-        .pw_hi_o    (pw_hi_pack),
-        .control_o  (control_pack),
-        .ad_o       (ad_pack),
-        .sr_o       (sr_pack)
-    );
+  reg_file reg_file_inst (
+    .clk_i          ( clk           ),
+    .rst_ni         ( rst_n         ),
+    .addr_i         ( reg_addr      ),
+    .wdata_i        ( reg_wdata     ),
+    .we_i           ( reg_we        ),
+    .rdata_o        ( reg_rdata     ),
+    .freq_lo_o      ( freq_lo_pack  ),
+    .freq_hi_o      ( freq_hi_pack  ),
+    .pw_lo_o        ( pw_lo_pack    ),
+    .pw_hi_o        ( pw_hi_pack    ),
+    .control_o      ( control_pack  ),
+    .ad_o           ( ad_pack       ),
+    .sr_o           ( sr_pack       )
+  );
 
-    controller controller_inst (
-        .clk_i          (clk),
-        .rst_ni         (rst_n),
-        .sample_tick_i  (sample_tick),
+  controller controller_inst (
+    .clk_i          ( clk           ),
+    .rst_ni         ( rst_n         ),
+    .sample_tick_i  ( sample_tick   ),
 
-        // Register file
-        .freq_lo_i      (freq_lo_pack),
-        .freq_hi_i      (freq_hi_pack),
-        .pw_lo_i        (pw_lo_pack),
-        .pw_hi_i        (pw_hi_pack),
-        .control_i      (control_pack),
-        .ad_i           (ad_pack),
-        .sr_i           (sr_pack),
+    // Register file
+    .freq_lo_i      ( freq_lo_pack  ),
+    .freq_hi_i      ( freq_hi_pack  ),
+    .pw_lo_i        ( pw_lo_pack    ),
+    .pw_hi_i        ( pw_hi_pack    ),
+    .control_i      ( control_pack  ),
+    .ad_i           ( ad_pack       ),
+    .sr_i           ( sr_pack       ),
 
-        // Voice generator
-        .voice_ready_i  (voice_ready),
-        .voice_wave_i   (env_wave),
-        .voice_start_o  (voice_start),
-        .voice_idx_o    (voice_idx),
-        .voice_freq_o   (voice_freq),
-        .voice_pw_o     (voice_pw),
-        .voice_wave_o   (voice_sel),
+    // Voice generator
+    .voice_ready_i  ( voice_ready   ),
+    .voice_wave_i   ( env_wave      ),
+    .voice_start_o  ( voice_start   ),
+    .voice_idx_o    ( voice_idx     ),
+    .voice_freq_o   ( voice_freq    ),
+    .voice_pw_o     ( voice_pw      ),
+    .voice_wave_o   ( voice_sel     ),
 
-        // Envelope generator
-        .env_ready_i    ( env_ready     ),
-        .env_start_o    ( env_start     ),
-        .env_gate_o     ( env_gate      ),
-        .env_attack_o   ( env_attack    ),
-        .env_decay_o    ( env_decay     ),
-        .env_sustain_o  ( env_sustain   ),
-        .env_release_o  ( env_release   ),
+    // Envelope generator
+    .env_ready_i    ( env_ready     ),
+    .env_start_o    ( env_start     ),
+    .env_gate_o     ( env_gate      ),
+    .env_attack_o   ( env_attack    ),
+    .env_decay_o    ( env_decay     ),
+    .env_sustain_o  ( env_sustain   ),
+    .env_release_o  ( env_release   ),
 
-        .audio_valid_o  (mix_valid),
-        .audio_o        (mix_out)
-    );
+    .audio_valid_o  ( mix_valid     ),
+    .audio_o        ( mix_out       )
+  );
 
   multi_voice multi_voice_inst (
     .clk_i          ( clk           ),
