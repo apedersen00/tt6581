@@ -21,26 +21,26 @@
 
 
 module mult (
-    input   logic       clk_i,
-    input   logic       rst_ni,
-    input   logic       start_i,
-    input   logic [9:0] op_a_i,   // Operand A (10 bit)
-    input   logic [7:0] op_b_i,   // Operand B (8 bit)
-    output  logic       ready_o,
-    output  logic [9:0] prod_o    // Product
+    input   logic         clk_i,
+    input   logic         rst_ni,
+    input   logic         start_i,
+    input   logic [13:0]  op_a_i,   // Operand A (10 bit)
+    input   logic [7:0]   op_b_i,   // Operand B (8 bit)
+    output  logic         ready_o,
+    output  logic [13:0]  prod_o    // Product
 );
 
   /************************************
    * Signals and assignments
    ***********************************/
   logic [3:0]   iter;
-  logic [17:0]  accum;
+  logic [21:0]  accum;
   logic         busy;
-  logic [17:0]  a_reg;
+  logic [21:0]  a_reg;
   logic [7:0]   b_reg;
 
-  assign ready_o = (iter == 8);
-  assign prod_o  = accum[17:8];
+  assign ready_o = (iter == 8) && !start_i;
+  assign prod_o  = accum[21:8];
 
   /************************************
    * State machine
@@ -90,7 +90,7 @@ module mult (
             if (b_reg[0]) begin
               accum <= accum + a_reg;
             end
-            a_reg <= {a_reg[16:0], 1'b0};
+            a_reg <= {a_reg[20:0], 1'b0};
             b_reg <= {1'b0, b_reg[7:1]};
             iter  <= iter + 1;
           end

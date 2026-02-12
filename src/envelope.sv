@@ -15,7 +15,6 @@
     .clk_i        (),
     .rst_ni       (),
     .start_i      (),
-    .wave_i       (),
     .voice_idx_i  (),
     .gate_i       (),
     .attack_i     (),
@@ -32,7 +31,6 @@ module envelope (
   input   logic       rst_ni,
   input   logic       start_i,      // Start processing voice_idx_i
 
-  input   logic [9:0] wave_i,       // Raw wave input
   input   logic [1:0] voice_idx_i,  // Active voice [0-2]
   input   logic       gate_i,       // Gate control
 
@@ -41,8 +39,11 @@ module envelope (
   input   logic [3:0] sustain_i,
   input   logic [3:0] release_i,
 
-  output  logic       ready_o,
-  output  logic [9:0] wave_o
+  input   logic       mult_ready_i,
+  output  logic       mult_start_o,
+  output  logic [7:0] env_raw_o,
+
+  output  logic       ready_o
 );
 
   localparam logic [23:0] MAX_VOL = 24'hFFFFFF;
@@ -62,13 +63,9 @@ module envelope (
   logic [23:0]  release_step;
   logic [3:0]   decay_release;
 
-  logic         mult_start;
-  logic         mult_ready;
-  logic [9:0]   mult_result;
-
   assign sustain_vol   = {sustain_i, {4{sustain_i[0]}}, 16'h0};
   assign cur_vol       = vol_regs[voice_idx_i];
-  assign mult_start    = (cur_state == STATE_ADSR);
+  assign mult_start_o  = (cur_state == STATE_ADSR);
   assign ready_o       = (cur_state == STATE_DONE);
   assign attack_step   = {6'd0, attack_lut};
   assign decay_step    = {6'd0, decay_lut};
@@ -95,9 +92,9 @@ module envelope (
   always_comb begin
     nxt_state   = cur_state;
     unique case (cur_state)
-      STATE_IDLE:   nxt_state = start_i     ? STATE_ADSR  : STATE_IDLE;
+      STATE_IDLE:   nxt_state = start_i       ? STATE_ADSR  : STATE_IDLE;
       STATE_ADSR:   nxt_state = STATE_MULT;
-      STATE_MULT:   nxt_state = mult_ready  ? STATE_DONE  : STATE_MULT;
+      STATE_MULT:   nxt_state = mult_ready_i  ? STATE_DONE  : STATE_MULT;
       STATE_DONE:   nxt_state = STATE_IDLE;
       default: ;
     endcase
@@ -257,19 +254,6 @@ module envelope (
     endcase
   end
 
-  /************************************
-   * Multiplication
-   ***********************************/
-  mult mult_inst (
-    .clk_i    ( clk_i           ),
-    .rst_ni   ( rst_ni          ),
-    .start_i  ( mult_start      ),
-    .op_a_i   ( wave_i          ),
-    .op_b_i   ( cur_vol[23:16]  ),
-    .ready_o  ( mult_ready      ),
-    .prod_o   ( mult_result     )
-  );
-
-  assign wave_o = mult_result;
+  assign env_raw_o = cur_vol[23:16];
 
 endmodule
