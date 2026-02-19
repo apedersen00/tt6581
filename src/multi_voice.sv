@@ -33,15 +33,15 @@ module multi_voice (
   input   logic [11:0]  pw_word_i,    // Pulse width control
   input   logic [3:0]   wave_sel_i,   // 0010: Saw, 0001: Tri, 0100: Pulse, 1000: Noise
   output  logic         ready_o,      // Voice is generated
-  output  logic [9:0]   wave_o        // Audio output
+  output  logic signed  [9:0]   wave_o        // Audio output
 );
 
   /************************************
    * Registers (voice states)
    ***********************************/
-  logic [18:0]  phase_regs [2:0];
-  logic [22:0]  lfsr_regs [2:0];
-  logic [9:0] wave_saw, wave_tri, wave_pulse, wave_noise;
+  logic         [18:0]  phase_regs [2:0];
+  logic         [22:0]  lfsr_regs [2:0];
+  logic signed  [9:0]   wave_saw, wave_tri, wave_pulse, wave_noise;
 
   logic [18:0]  cur_phase, nxt_phase;
   logic [22:0]  cur_lfsr, nxt_lfsr;
@@ -106,9 +106,9 @@ module multi_voice (
   // due to now only updating it 50 kHz (on sample_tick)
   assign nxt_phase = cur_phase + {3'd0, freq_word_i};
 
-  assign wave_saw   = nxt_phase[18:9];
-  assign wave_tri   = nxt_phase[18] ? ~nxt_phase[17:8] : nxt_phase[17:8];
-  assign wave_pulse = (nxt_phase[18:7] >= pw_word_i) ? 10'd1023 : 10'd0;
+  assign wave_saw   = {nxt_phase[18], nxt_phase[17:9]};
+  assign wave_tri   = (nxt_phase[18] ? ~nxt_phase[17:8] : nxt_phase[17:8]) ^ 10'h200;
+  assign wave_pulse = (nxt_phase[18:7] >= pw_word_i) ? 10'sd511 : -10'sd512;
 
   assign noise_en = (cur_phase[9] == 1'b0 && nxt_phase[9] == 1'b1);
 
@@ -117,7 +117,7 @@ module multi_voice (
     if (noise_en) nxt_lfsr = {cur_lfsr[21:0], cur_lfsr[22] ^ cur_lfsr[17]};
   end
 
-  assign wave_noise = cur_lfsr[22:13];
+  assign wave_noise = {~cur_lfsr[22], cur_lfsr[21:13]};
 
   /************************************
    * MUX output

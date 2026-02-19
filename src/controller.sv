@@ -26,8 +26,6 @@
     .sr_i           (),
     .fc_lo_i        (),
     .fc_hi_i        (),
-    .res_filt_i     (),
-    .mode_vol_i     (),
 
     // Voice generator
     .voice_ready_i  (),
@@ -56,17 +54,13 @@ module controller (
   input   logic               sample_tick_i,  // 50 kHz tick
 
   // Register file
-  input logic [2:0][7:0]     freq_lo_i,
-  input logic [2:0][7:0]     freq_hi_i,
-  input logic [2:0][7:0]     pw_lo_i,
-  input logic [2:0][7:0]     pw_hi_i,
-  input logic [2:0][7:0]     control_i,
-  input logic [2:0][7:0]     ad_i,
-  input logic [2:0][7:0]     sr_i,
-  input logic [7:0]          fc_lo_i,
-  input logic [7:0]          fc_hi_i,
-  input logic [7:0]          res_filt_i,
-  input logic [7:0]          mode_vol_i,
+  input logic [2:0][7:0]      freq_lo_i,
+  input logic [2:0][7:0]      freq_hi_i,
+  input logic [2:0][7:0]      pw_lo_i,
+  input logic [2:0][7:0]      pw_hi_i,
+  input logic [2:0][7:0]      control_i,
+  input logic [2:0][7:0]      ad_i,
+  input logic [2:0][7:0]      sr_i,
 
   // Voice generator
   input   logic               voice_ready_i,  // Voice ready
@@ -88,9 +82,17 @@ module controller (
   // Multiplier
   input   logic               mult_ready_i,
   output  logic               mult_start_o,
-  output  logic               mult_in_mux_o,
-  output  logic               mult_out_latch_o,
-  output  logic               mult_rst_latch_o,
+  output  logic [1:0]         mult_in_mux_o,    // 0: env, 1: svf, 2: vol
+
+  // Filter
+  input   logic               filt_ready_i,
+  input   logic [2:0]         filt_en_i,
+  output  logic               filt_start_o,
+
+  // Output
+  output  logic               accum_en_o,       // Accumulate enable
+  output  logic               accum_rst_o,      // Reset accumulators
+  output  logic               accum_mux_o,      // 1'b0: nofilter, 1'b1: filter
 
   output  logic               audio_valid_o
 );
@@ -116,15 +118,17 @@ module controller (
    * State machine
    ***********************************/
   typedef enum logic [3:0] {
-    STATE_IDLE,   // Wait for sample tick
-    STATE_SYN,    // Synthesize raw wave
-    STATE_ENV,    // Apply envelope
-    STATE_ACC,    // Add to mix
-    STATE_LATCH,  // Latch accumulated wave
-    STATE_VOL,    // Apply global volume
-    STATE_VOL_WT, // Wait for volume
-    STATE_VOL_LT, // Latch
-    STATE_DONE
+    STATE_IDLE,       // Wait for sample tick
+    STATE_SYN,        // Start voice waveform synthesis
+    STATE_SYN_WAIT,   // Wait until voice is ready
+    STATE_ENV,        // Start envelope + multiply (voice * env)
+    STATE_ENV_WAIT,   // Wait until multiplication is done
+    STATE_ACCUM,      // Accumulate envelope product into accumulator
+    STATE_FILT,       // Start SVF
+    STATE_FILT_WAIT,  // Wait until SVF is done
+    STATE_VOL,        // Start volume multiply (accum * volume)
+    STATE_VOL_WAIT,   // Wait for volume multiply to finish
+    STATE_DONE        // Signal audio valid
   } state_e;
 
   state_e cur_state, nxt_state;
@@ -137,82 +141,112 @@ module controller (
   always_comb begin
     nxt_state = cur_state;
     unique case (cur_state)
-      STATE_IDLE:   nxt_state = sample_tick_i     ? STATE_SYN   : STATE_IDLE;
-      STATE_SYN:    nxt_state = voice_ready_i     ? STATE_ENV   : STATE_SYN;
-      STATE_ENV:    nxt_state = STATE_ACC;
-      STATE_ACC:    nxt_state = env_ready_i       ? STATE_LATCH : STATE_ACC;
-      STATE_LATCH:  nxt_state = (cur_voice == 3)  ? STATE_VOL   : STATE_SYN;
-      STATE_VOL:    nxt_state = STATE_VOL_WT;
-      STATE_VOL_WT: nxt_state = mult_ready_i      ? STATE_VOL_LT : STATE_VOL_WT;
-      STATE_VOL_LT: nxt_state = STATE_DONE;
-      STATE_DONE:   nxt_state = STATE_IDLE;
-      default     : ;
+      STATE_IDLE:       if (sample_tick_i)      nxt_state = STATE_SYN;
+      STATE_SYN:                                nxt_state = STATE_SYN_WAIT;
+      STATE_SYN_WAIT:   if (voice_ready_i)      nxt_state = STATE_ENV;
+      STATE_ENV:                                nxt_state = STATE_ENV_WAIT;
+      STATE_ENV_WAIT:   if (env_ready_i)        nxt_state = STATE_ACCUM;
+      STATE_ACCUM:      if (cur_voice == 2'd2)  nxt_state = STATE_FILT;
+                        else                    nxt_state = STATE_SYN;
+      STATE_FILT:                               nxt_state = STATE_FILT_WAIT;
+      STATE_FILT_WAIT:  if (filt_ready_i)       nxt_state = STATE_VOL;
+      STATE_VOL:                                nxt_state = STATE_VOL_WAIT;
+      STATE_VOL_WAIT:   if (mult_ready_i)       nxt_state = STATE_DONE;
+      STATE_DONE:                               nxt_state = STATE_IDLE;
+      default: ;
     endcase
   end
 
   /************************************
-   * Voice iteration
+   * Voice counter
    ***********************************/
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
-      cur_voice     <= '0;
-      audio_valid_o <= '0;
-      env_start_o   <= '0;
-      voice_start_o <= '0;
+      cur_voice <= '0;
     end else begin
-      env_start_o       <= '0;
-      voice_start_o     <= '0;
-      mult_out_latch_o  <= '0;
-      mult_start_o      <= '0;
-      audio_valid_o     <= '0;
-      mult_in_mux_o     <= '0;
-      mult_rst_latch_o  <= '0;
-
-      unique case (cur_state)
-
-        STATE_IDLE: begin
-          mult_rst_latch_o <= 1'b1;
-          if (sample_tick_i) begin
-            cur_voice <= '0;
-          end
-        end
-
-        STATE_SYN: begin
-          voice_start_o     <= 1'b1;
-        end
-
-        STATE_ENV: begin
-          env_start_o       <= 1'b1;
-        end
-
-        STATE_ACC: begin
-          if (env_ready_i) cur_voice <= cur_voice + 1;
-        end
-
-        STATE_LATCH: begin
-          mult_out_latch_o  <= 1'b1;
-        end
-
-        STATE_VOL: begin
-          mult_start_o      <= 1'b1;
-          mult_in_mux_o     <= 1'b1;
-        end
-
-        STATE_VOL_WT: begin
-          mult_in_mux_o     <= 1'b1;
-        end
-
-        STATE_VOL_LT: begin
-          mult_out_latch_o  <= 1'b1;
-        end
-
-        STATE_DONE: begin
-          audio_valid_o     <= 1'b1;
-        end
-
-      endcase
+      if (cur_state == STATE_IDLE && sample_tick_i) cur_voice <= '0;
+      else if (cur_state == STATE_ACCUM)            cur_voice <= cur_voice + 1;
     end
   end
 
+  /************************************
+   * Output signals
+   ***********************************/
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      voice_start_o   <= '0;
+      env_start_o     <= '0;
+      mult_start_o    <= '0;
+      mult_in_mux_o   <= '0;
+      accum_en_o      <= '0;
+      accum_rst_o     <= '0;
+      audio_valid_o   <= '0;
+      filt_start_o    <= '0;
+      accum_mux_o     <= '0;
+    end else begin
+      voice_start_o   <= '0;
+      env_start_o     <= '0;
+      mult_start_o    <= '0;
+      mult_in_mux_o   <= '0;
+      accum_en_o      <= '0;
+      accum_rst_o     <= '0;
+      audio_valid_o   <= '0;
+      filt_start_o    <= '0;
+      accum_mux_o     <= '0;
+
+      case (cur_state)
+        STATE_IDLE: begin
+          accum_rst_o   <= 1'b1;
+        end
+
+        STATE_SYN: begin
+          voice_start_o <= 1'b1;
+        end
+
+        STATE_ENV: begin
+          mult_in_mux_o <= 2'b00;
+          env_start_o   <= 1'b1;
+        end
+
+        STATE_ENV_WAIT: begin
+          mult_in_mux_o <= 2'b00;
+        end
+
+        STATE_ACCUM: begin
+          accum_en_o    <= 1'b1;
+          case (cur_voice)
+            2'b00: accum_mux_o <= filt_en_i[0];
+            2'b01: accum_mux_o <= filt_en_i[1];
+            2'b10: accum_mux_o <= filt_en_i[2];
+            default: ;
+          endcase
+        end
+
+        STATE_FILT: begin
+          mult_in_mux_o <= 2'b01;
+          filt_start_o  <= 1'b1;
+        end
+
+        STATE_FILT_WAIT: begin
+          mult_in_mux_o <= 2'b01;
+        end
+
+        STATE_VOL: begin
+          mult_in_mux_o <= 2'b10;
+          mult_start_o  <= 1'b1;
+        end
+
+        STATE_VOL_WAIT: begin
+          mult_in_mux_o <= 2'b10;
+        end
+
+        STATE_DONE: begin
+          audio_valid_o    <= 1'b1;
+        end
+
+        default: ;
+      endcase
+    end
+  end
 
 endmodule

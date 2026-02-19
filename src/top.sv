@@ -22,10 +22,18 @@ module tt_um_andreasp00 (
   logic [9:0] audio_out;
 
   wire miso;
-  assign uo_out[0] = miso;
-  
-  assign uio_out = 8'b0;
-  assign uio_oe  = 8'b0;
+
+  // Dedicated Outputs
+  assign uo_out[0]   = miso;
+  assign uo_out[7:1] = audio_out[9:3]; // Top 7 bits of audio to dedicated outputs
+
+  // Bidirectional IO Outputs
+  assign uio_out[2:0] = audio_out[2:0]; // Bottom 3 bits of audio to uio pins 0, 1, and 2
+  assign uio_out[7:3] = 5'b0;           // Tie off the remaining uio output paths to 0
+
+  // Bidirectional IO Enables
+  assign uio_oe[2:0]  = 3'b111;         // Set uio[2:0] as OUTPUTS
+  assign uio_oe[7:3]  = 5'b00000;       // Set uio[7:3] as INPUTS (high-Z)
 
   tt6581 tt6581_inst (
     .clk_i  ( clk       ),
@@ -37,12 +45,10 @@ module tt_um_andreasp00 (
     .wave_o ( audio_out )
   );
 
-  assign uo_out[7:1] = audio_out[7:1];
-
   wire _unused_ok = &{
       ena,
-      uio_in,     // Not using bidirectional pins
-      ui_in[7:3], // Not using pins 3-7
+      uio_in,
+      ui_in[7:3],
       1'b0
   };
 

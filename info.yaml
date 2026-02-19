@@ -25,6 +25,7 @@ project:
     - "tick_gen.sv"
     - "envelope.sv"
     - "mult.sv"
+    - "svf.sv"
     - "top.sv"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
