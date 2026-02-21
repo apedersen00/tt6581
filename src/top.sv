@@ -19,21 +19,20 @@ module tt_um_andreasp00 (
   wire sclk = ui_in[0];
   wire cs   = ui_in[1];
   wire mosi = ui_in[2];
-  logic [9:0] audio_out;
+  logic audio_out;
 
   wire miso;
 
   // Dedicated Outputs
   assign uo_out[0]   = miso;
-  assign uo_out[7:1] = audio_out[9:3]; // Top 7 bits of audio to dedicated outputs
+  assign uo_out[1]   = audio_out;  // 1-bit delta-sigma PDM output
+  assign uo_out[7:2] = 6'b0;
 
   // Bidirectional IO Outputs
-  assign uio_out[2:0] = audio_out[2:0]; // Bottom 3 bits of audio to uio pins 0, 1, and 2
-  assign uio_out[7:3] = 5'b0;           // Tie off the remaining uio output paths to 0
+  assign uio_out = 8'b0;
 
   // Bidirectional IO Enables
-  assign uio_oe[2:0]  = 3'b111;         // Set uio[2:0] as OUTPUTS
-  assign uio_oe[7:3]  = 5'b00000;       // Set uio[7:3] as INPUTS (high-Z)
+  assign uio_oe  = 8'b0;  // All set as INPUTS (high-Z)
 
   tt6581 tt6581_inst (
     .clk_i  ( clk       ),

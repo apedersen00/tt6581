@@ -69,6 +69,8 @@ module controller (
   output  logic [15:0]        voice_freq_o,   // Active voice freq
   output  logic [11:0]        voice_pw_o,     // Active voice pulse width
   output  logic [3:0]         voice_wave_o,   // Active voice select
+  output  logic               voice_sync_o,   // Active voice sync
+  output  logic               voice_ring_mod_o, // Active voice ring modulation
 
   // Envelope generator
   input   logic               env_ready_i,
@@ -102,10 +104,12 @@ module controller (
    ***********************************/
   logic [1:0] cur_voice;
 
-  assign voice_idx_o  = cur_voice;
-  assign voice_freq_o = {freq_hi_i[cur_voice], freq_lo_i[cur_voice]};
-  assign voice_pw_o   = {pw_hi_i[cur_voice][3:0], pw_lo_i[cur_voice]};
-  assign voice_wave_o = control_i[cur_voice][7:4];
+  assign voice_idx_o      = cur_voice;
+  assign voice_freq_o     = {freq_hi_i[cur_voice], freq_lo_i[cur_voice]};
+  assign voice_pw_o       = {pw_hi_i[cur_voice][3:0], pw_lo_i[cur_voice]};
+  assign voice_wave_o     = control_i[cur_voice][7:4];
+  assign voice_ring_mod_o = control_i[cur_voice][2];
+  assign voice_sync_o     = control_i[cur_voice][1];
 
   assign env_gate_o     = control_i[cur_voice][0];
   assign env_attack_o   = ad_i[cur_voice][7:4];

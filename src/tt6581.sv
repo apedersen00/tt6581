@@ -18,7 +18,7 @@
     .cs_i   (),
     .mosi_i (),
     .miso_o (),
-    .wave_o ()
+    .wave_o ()  // 1-bit PDM
   );
 */
 
@@ -29,7 +29,7 @@ module tt6581 (
   input   logic       cs_i,       // SPI Chip select
   input   logic       mosi_i,     // SPI MOSI
   output  logic       miso_o,     // SPI MISO
-  output  logic [9:0] wave_o
+  output  logic       wave_o      // Delta-Sigma PDM output
 );
 
   /************************************
@@ -59,6 +59,8 @@ module tt6581 (
   logic [11:0]  voice_pw;
   logic [3:0]   voice_sel;
   logic [9:0]   voice_wave;
+  logic         voice_sync;
+  logic         voice_ring_mod;
 
   // Envelope
   logic         env_ready;
@@ -162,6 +164,8 @@ module tt6581 (
     .voice_freq_o       ( voice_freq      ),
     .voice_pw_o         ( voice_pw        ),
     .voice_wave_o       ( voice_sel       ),
+    .voice_sync_o       ( voice_sync      ),
+    .voice_ring_mod_o   ( voice_ring_mod  ),
 
     // Envelope generator
     .env_ready_i        ( env_ready       ),
@@ -197,6 +201,8 @@ module tt6581 (
     .freq_word_i        ( voice_freq      ),
     .pw_word_i          ( voice_pw        ),
     .wave_sel_i         ( voice_sel       ),
+    .sync_i             ( voice_sync      ),
+    .ring_mod_i         ( voice_ring_mod  ),  
     .ready_o            ( voice_ready     ),
     .wave_o             ( voice_wave      )
   );
@@ -303,17 +309,12 @@ module tt6581 (
     end
   end
 
-  logic [9:0] out_reg;
-  always_ff @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni) begin
-      out_reg <= '0;
-    end else if (audio_valid) begin
-      if (mult_out > 14'sd511)       out_reg <= 10'd1023;
-      else if (mult_out < -14'sd512) out_reg <= 10'd0;
-      else                           out_reg <= { ~mult_out[9], mult_out[8:0] };
-    end
-  end
-
-  assign wave_o = out_reg;
+  delta_sigma delta_sigma_inst (
+    .clk_i          ( clk_i       ),
+    .rst_ni         ( rst_ni      ),
+    .audio_valid_i  ( audio_valid ),
+    .audio_i        ( mult_out    ),
+    .wave_o         ( wave_o      )
+  );
 
 endmodule

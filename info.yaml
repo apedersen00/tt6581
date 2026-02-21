@@ -26,6 +26,7 @@ project:
     - "envelope.sv"
     - "mult.sv"
     - "svf.sv"
+    - "delta_sigma.sv"
     - "top.sv"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.

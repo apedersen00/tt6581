@@ -21,8 +21,10 @@
     .decay_i      (),
     .sustain_i    (),
     .release_i    (),
-    .ready_o      (),
-    .wave_o       ()
+    .mult_ready_i (),
+    .mult_start_o (),
+    .env_raw_o    (),
+    .ready_o      ()
   );
 */
 
@@ -63,7 +65,7 @@ module envelope (
   logic [23:0]  release_step;
   logic [3:0]   decay_release;
 
-  assign sustain_vol   = {sustain_i, {4{sustain_i[0]}}, 16'h0};
+  assign sustain_vol   = {sustain_i, sustain_i, 16'h0};
   assign cur_vol       = vol_regs[voice_idx_i];
   assign mult_start_o  = (cur_state == STATE_ADSR);
   assign ready_o       = (cur_state == STATE_DONE);
