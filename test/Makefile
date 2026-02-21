@@ -3,10 +3,10 @@
 
 # defaults
 SIM ?= icarus
-FST ?= -fst # Use more efficient FST format
+FST ?= -fst
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = project.v
+PROJECT_SOURCES = controller.sv delta_sigma.sv envelope.sv mult.sv multi_voice.sv reg_file.sv spi.sv svf.sv tick_gen.sv top.sv tt6581.sv
 
 ifneq ($(GATES),yes)
 
