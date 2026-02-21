@@ -70,7 +70,10 @@ module multi_voice (
   always_comb begin
     nxt_state = STATE_READY;
     unique case (cur_state)
-      STATE_READY:  nxt_state = start_i ? STATE_BUSY  : STATE_READY;
+      STATE_READY: begin
+        if (start_i) nxt_state = STATE_BUSY;
+        else         nxt_state = STATE_READY;
+      end
       STATE_BUSY:   nxt_state = STATE_WRITE;
       STATE_WRITE:  nxt_state = STATE_READY;
       default     : ;

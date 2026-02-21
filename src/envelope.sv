@@ -66,7 +66,14 @@ module envelope (
   logic [3:0]   decay_release;
 
   assign sustain_vol   = {sustain_i, sustain_i, 16'h0};
-  assign cur_vol       = vol_regs[voice_idx_i];
+  // Use always_comb + case for Icarus compatibility (variable array indexing)
+  always_comb begin
+    case (voice_idx_i)
+      2'd0:    cur_vol = vol_regs[0];
+      2'd1:    cur_vol = vol_regs[1];
+      default: cur_vol = vol_regs[2];
+    endcase
+  end
   assign mult_start_o  = (cur_state == STATE_ADSR);
   assign ready_o       = (cur_state == STATE_DONE);
   assign attack_step   = {6'd0, attack_lut};
@@ -94,9 +101,15 @@ module envelope (
   always_comb begin
     nxt_state   = cur_state;
     unique case (cur_state)
-      STATE_IDLE:   nxt_state = start_i       ? STATE_ADSR  : STATE_IDLE;
+      STATE_IDLE: begin
+        if (start_i) nxt_state = STATE_ADSR;
+        else         nxt_state = STATE_IDLE;
+      end
       STATE_ADSR:   nxt_state = STATE_MULT;
-      STATE_MULT:   nxt_state = mult_ready_i  ? STATE_DONE  : STATE_MULT;
+      STATE_MULT: begin
+        if (mult_ready_i) nxt_state = STATE_DONE;
+        else              nxt_state = STATE_MULT;
+      end
       STATE_DONE:   nxt_state = STATE_IDLE;
       default: ;
     endcase
@@ -112,10 +125,17 @@ module envelope (
     STATE_RELEASE
   } voice_state_e;
 
-  voice_state_e voice_states [2:0];
-  voice_state_e cur_voice_state, nxt_voice_state;
+  logic [1:0] voice_states [2:0];
+  logic [1:0] cur_voice_state, nxt_voice_state;
 
-  assign cur_voice_state = voice_states[voice_idx_i];
+  // Use always_comb + case for Icarus compatibility (variable array indexing)
+  always_comb begin
+    case (voice_idx_i)
+      2'd0:    cur_voice_state = voice_states[0];
+      2'd1:    cur_voice_state = voice_states[1];
+      default: cur_voice_state = voice_states[2];
+    endcase
+  end
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
@@ -140,8 +160,14 @@ module envelope (
     end
     else begin
       unique case (cur_voice_state)
-        STATE_ATTACK:   nxt_voice_state = (cur_vol >= MAX_VOL)      ? STATE_DECAY   : STATE_ATTACK;
-        STATE_DECAY:    nxt_voice_state = (cur_vol <= sustain_vol)  ? STATE_SUSTAIN : STATE_DECAY;
+        STATE_ATTACK: begin
+          if (cur_vol >= MAX_VOL) nxt_voice_state = STATE_DECAY;
+          else                   nxt_voice_state = STATE_ATTACK;
+        end
+        STATE_DECAY: begin
+          if (cur_vol <= sustain_vol) nxt_voice_state = STATE_SUSTAIN;
+          else                       nxt_voice_state = STATE_DECAY;
+        end
         STATE_SUSTAIN:  nxt_voice_state = STATE_SUSTAIN;
         STATE_RELEASE:  nxt_voice_state = STATE_RELEASE;
         default: ;

@@ -61,8 +61,14 @@ module mult (
   always_comb begin
     nxt_state = STATE_READY;
     case (cur_state)
-      STATE_READY: nxt_state = start_i       ? STATE_ITER  : STATE_READY;
-      STATE_ITER:  nxt_state = (iter == 5'd16) ? STATE_READY : STATE_ITER;
+      STATE_READY: begin
+        if (start_i) nxt_state = STATE_ITER;
+        else         nxt_state = STATE_READY;
+      end
+      STATE_ITER: begin
+        if (iter == 5'd16) nxt_state = STATE_READY;
+        else               nxt_state = STATE_ITER;
+      end
     endcase
   end
 
