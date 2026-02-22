@@ -35,28 +35,42 @@ def plot_envelope(samples: list[int], att, dec, sus, rel, gate_samps, filename: 
     peak = max(samples)
     sus_level = peak * sus
 
+    env_style = dict(color='black', linewidth=2, alpha=0.8, linestyle='--')
+
     # Attack
-    ax.plot((0, att), (0, peak), color='black', linewidth=4, alpha=1.0, linestyle='--')
+    ax.plot((0, att), (0, peak), **env_style, label='Expected envelope')
 
     # Decay
     tau_dec = dec / 3
     t_sus_cross = -tau_dec * np.log(sus)
     t_dec = np.linspace(0, t_sus_cross, 200)
     decay_curve = peak * np.exp(-t_dec / tau_dec)
-    ax.plot(att + t_dec, decay_curve, color='black', linewidth=4, alpha=1.0, linestyle='--')
+    ax.plot(att + t_dec, decay_curve, **env_style)
 
     # Sustain
     t_dec_end = att + t_sus_cross
-    ax.plot((t_dec_end, t_gate_off), (sus_level, sus_level), color='black', linewidth=4, alpha=1.0, linestyle='--')
+    ax.plot((t_dec_end, t_gate_off), (sus_level, sus_level), **env_style)
 
     # Release
     tau_rel = rel / 3
     t_rel = np.linspace(0, rel, 200)
     release_curve = sus_level * np.exp(-t_rel / tau_rel)
-    ax.plot(t_gate_off + t_rel, release_curve, color='black', linewidth=4, alpha=1.0, linestyle='--')
+    ax.plot(t_gate_off + t_rel, release_curve, **env_style)
+
+    # ADSR info box
+    adsr_text = (f"A = {att} ms\n"
+                 f"D = {dec} ms\n"
+                 f"S = {sus:.2f} ({int(sus * 0xF)}/15)\n"
+                 f"R = {rel} ms")
+    ax.text(0.98, 0.95, adsr_text, transform=ax.transAxes, fontsize=9,
+            verticalalignment='top', horizontalalignment='right',
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.7),
+            fontfamily='monospace')
+
     ax.set_xlabel("Time (ms)")
     ax.set_ylabel("audio_i  (signed 14-bit)")
     ax.set_title(title)
+    ax.legend(loc='upper left')
     fig.tight_layout()
     plot_path = os.path.join(TB_OUTPUT_DIR, filename)
     fig.savefig(plot_path, dpi=150)
