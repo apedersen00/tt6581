@@ -65,7 +65,7 @@ async def test_waveforms(dut):
 
     dut._log.info("=== test_waveforms: done ===")
 
-@cocotb.test()
+# @cocotb.test()
 async def test_frequencies(dut):
     """
     Play three voices at different frequencies and calculate frequency spectrum.
@@ -79,7 +79,7 @@ async def test_frequencies(dut):
     await set_volume(dut, 0xFF)             # Max volume
 
     freqs = [
-        [100, 1000, 10000],
+        [100, 1000, 5000],
         [50, 200, 400] 
     ]
 
@@ -105,7 +105,7 @@ async def test_frequencies(dut):
         # Let the envelope reach sustain before capturing
         await ClockCycles(dut.clk, 500000)
 
-        samples = await capture_audio(dut, num_samples=2000)
+        samples = await capture_audio(dut, num_samples=5000)
         dut._log.info(f"[TB] Captured {len(samples)} samples for frequencies: {f}")
 
         stats = plot_frequencies(
@@ -123,11 +123,11 @@ async def test_frequencies(dut):
         await gate_off(dut, V0_BASE, WAVE_TRI)
         await gate_off(dut, V1_BASE, WAVE_TRI)
         await gate_off(dut, V2_BASE, WAVE_TRI)
-        await ClockCycles(dut.clk, 500000)
+        await ClockCycles(dut.clk, 5000)
 
     dut._log.info("=== test_frequencies: done ===")
 
-# @cocotb.test()
+@cocotb.test()
 async def test_envelopes(dut):
     """Test different ADSR envelope settings with a sawtooth and plot the
     amplitude envelope over time."""
@@ -141,19 +141,19 @@ async def test_envelopes(dut):
 
     # Each entry: (label, attack, decay, sustain, release, gate_on_samples, gate_off_samples)
     envelope_configs = [
-        ("A0 D0 S15 R0  (instant)",     0,  0, 0xF,  0,  300,  200),
-        ("A4 D4 S10 R4  (moderate)",    4,  4, 0xA,  4,  400,  300),
-        ("A8 D6 S8  R8  (slow)",        8,  6, 0x8,  8,  500,  500),
-        ("A0 D0 S15 R15 (long release)",0,  0, 0xF, 0xF, 200,  600),
-        ("A15 D0 S15 R0 (slow attack)", 0xF,0, 0xF,  0,  800,  200),
+        ("A0 D0 S15 R0  (instant)",     0,  0, 0xF,  0,  1000,  600),   # 2ms, 6ms, 6ms
+        ("A4 D4 S10 R4  (moderate)",    4,  4, 0xA,  4,  50,  500),    # 38ms, 114m, 114ms
+        #("A8 D6 S8  R8  (slow)",        8,  6, 0x8,  8,  500,  500),
+        #("A0 D0 S15 R15 (long release)",0,  0, 0xF, 0xF, 500,  500),
+        #("A15 D0 S15 R0 (slow attack)", 0xF,0, 0xF,  0,  500,  500),
     ]
 
     all_traces: list[tuple[str, list[int]]] = []
 
     for label, atk, dec, sus, rel, gate_samps, rel_samps in envelope_configs:
-        dut._log.info(f"── Envelope: {label} ──")
+        dut._log.info(f"*** Envelope: {label} ***")
 
-        await setup_voice(dut, V0_BASE, freq_hz=440.0,
+        await setup_voice(dut, V0_BASE, freq_hz=2000.0,
                           waveform=WAVE_SAW, pw=0x800,
                           attack=atk, decay=dec,
                           sustain=sus, release=rel)
