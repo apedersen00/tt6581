@@ -70,7 +70,7 @@ async def reset_dut(dut, cycles: int = 10):
 # =============================================================================
 
 async def capture_audio(dut, num_samples: int = 500,
-                        max_clocks: int = 2_000_000,
+                        max_clocks: int = 0,
                         log_every: int = 100) -> list[int]:
     """
     Capture N samples of delta-sigma audio_i (on audio_valid_i pulses).
@@ -78,6 +78,10 @@ async def capture_audio(dut, num_samples: int = 500,
     Returns a list of signed 14-bit integers.
     """
     audio_samples: list[int] = []
+
+    # If no max set, run for a very long time
+    if max_clocks == 0:
+        max_clocks = int(1e9)
 
     for _ in range(max_clocks):
         await RisingEdge(dut.clk)

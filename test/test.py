@@ -17,7 +17,7 @@ from tt6581_tb import (
     # signal / capture
     reset_dut, capture_audio,
     # plotting
-    plot_audio_samples, plot_frequencies
+    plot_audio_samples, plot_frequencies, plot_envelope
 )
 
 
@@ -141,8 +141,8 @@ async def test_envelopes(dut):
 
     # Each entry: (label, attack, decay, sustain, release, gate_on_samples, gate_off_samples)
     envelope_configs = [
-        ("A0 D0 S15 R0  (instant)",     0,  0, 0xF,  0,  1000,  600),   # 2ms, 6ms, 6ms
-        ("A4 D4 S10 R4  (moderate)",    4,  4, 0xA,  4,  50,  500),    # 38ms, 114m, 114ms
+        ("A0 D0 S15 R0  (instant)",     0,  0, 0xF,  0,  50*20,  50*12),   # 2ms, 6ms, 6ms
+        ("A4 D4 S10 R4  (moderate)",    4,  4, 0xA,  4,  50*150,  50*120), # 38ms, 114m, 114ms
         #("A8 D6 S8  R8  (slow)",        8,  6, 0x8,  8,  500,  500),
         #("A0 D0 S15 R15 (long release)",0,  0, 0xF, 0xF, 500,  500),
         #("A15 D0 S15 R0 (slow attack)", 0xF,0, 0xF,  0,  500,  500),
@@ -171,8 +171,8 @@ async def test_envelopes(dut):
                       f"({len(on_samples)} on + {len(off_samples)} off)")
 
         safe_name = label.split("(")[0].strip().replace(" ", "_")
-        plot_audio_samples(
-            combined,
+        plot_envelope(
+            combined, atk, dec, sus, rel, gate_samps,
             filename=f"env_{safe_name}.png",
             title=f"audio_i — Envelope: {label}",
         )

@@ -12,6 +12,55 @@ import matplotlib.pyplot as plt
 
 from .constants import TB_OUTPUT_DIR, SAMPLE_RATE
 
+def plot_envelope(samples: list[int], att, dec, sus, rel, gate_samps, filename: str = "audio_i_plot.png",
+                       title: str = "delta_sigma.audio_i",
+                       sample_rate: int = SAMPLE_RATE):
+    att_lut = [2, 8, 16, 24, 38, 56, 68, 80, 100, 250, 500, 800, 1000, 3000, 5000, 8000]
+    dec_lut = [6, 24, 48, 72, 114, 168, 204, 240, 300, 750, 1500, 2400, 3000, 9000, 15000, 24000]
+
+    t_ms = [i / sample_rate * 1000.0 for i in range(len(samples))]
+
+    att = att_lut[att]
+    dec = dec_lut[dec]
+    sus = float(sus / 0xF)
+    rel = dec_lut[rel]
+
+    t_gate_off = t_ms[gate_samps]
+
+    fig, ax = plt.subplots(figsize=(12, 4))
+    ax.plot(t_ms, samples, color='blue', linewidth=2, alpha=0.7)
+    ax.set_ylim(-1024, 1023)
+    ax.set_xlim(0, max(t_ms))
+
+    peak = max(samples)
+    sus_level = peak * sus
+
+    # Attack
+    ax.plot((0, att), (0, peak), color='black', linewidth=4, alpha=1.0, linestyle='--')
+
+    # Decay
+    tau_dec = dec / 3
+    t_sus_cross = -tau_dec * np.log(sus)
+    t_dec = np.linspace(0, t_sus_cross, 200)
+    decay_curve = peak * np.exp(-t_dec / tau_dec)
+    ax.plot(att + t_dec, decay_curve, color='black', linewidth=4, alpha=1.0, linestyle='--')
+
+    # Sustain
+    t_dec_end = att + t_sus_cross
+    ax.plot((t_dec_end, t_gate_off), (sus_level, sus_level), color='black', linewidth=4, alpha=1.0, linestyle='--')
+
+    # Release
+    tau_rel = rel / 3
+    t_rel = np.linspace(0, rel, 200)
+    release_curve = sus_level * np.exp(-t_rel / tau_rel)
+    ax.plot(t_gate_off + t_rel, release_curve, color='black', linewidth=4, alpha=1.0, linestyle='--')
+    ax.set_xlabel("Time (ms)")
+    ax.set_ylabel("audio_i  (signed 14-bit)")
+    ax.set_title(title)
+    fig.tight_layout()
+    plot_path = os.path.join(TB_OUTPUT_DIR, filename)
+    fig.savefig(plot_path, dpi=150)
+
 def plot_audio_samples(samples: list[int], filename: str = "audio_i_plot.png",
                        title: str = "delta_sigma.audio_i",
                        sample_rate: int = SAMPLE_RATE):
