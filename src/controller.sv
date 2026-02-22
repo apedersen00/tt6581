@@ -104,50 +104,18 @@ module controller (
    ***********************************/
   logic [1:0] cur_voice;
 
-  assign voice_idx_o = cur_voice;
+  assign voice_idx_o      = cur_voice;
+  assign voice_freq_o     = {freq_hi_i[cur_voice], freq_lo_i[cur_voice]};
+  assign voice_pw_o       = {pw_hi_i[cur_voice][3:0], pw_lo_i[cur_voice]};
+  assign voice_wave_o     = control_i[cur_voice][7:4];
+  assign voice_ring_mod_o = control_i[cur_voice][2];
+  assign voice_sync_o     = control_i[cur_voice][1];
 
-  // Use always_comb with case to avoid variable array indexing in assigns
-  // (not supported by Icarus Verilog)
-  always_comb begin
-    case (cur_voice)
-      2'd0: begin
-        voice_freq_o     = {freq_hi_i[0], freq_lo_i[0]};
-        voice_pw_o       = {pw_hi_i[0][3:0], pw_lo_i[0]};
-        voice_wave_o     = control_i[0][7:4];
-        voice_ring_mod_o = control_i[0][2];
-        voice_sync_o     = control_i[0][1];
-        env_gate_o       = control_i[0][0];
-        env_attack_o     = ad_i[0][7:4];
-        env_decay_o      = ad_i[0][3:0];
-        env_sustain_o    = sr_i[0][7:4];
-        env_release_o    = sr_i[0][3:0];
-      end
-      2'd1: begin
-        voice_freq_o     = {freq_hi_i[1], freq_lo_i[1]};
-        voice_pw_o       = {pw_hi_i[1][3:0], pw_lo_i[1]};
-        voice_wave_o     = control_i[1][7:4];
-        voice_ring_mod_o = control_i[1][2];
-        voice_sync_o     = control_i[1][1];
-        env_gate_o       = control_i[1][0];
-        env_attack_o     = ad_i[1][7:4];
-        env_decay_o      = ad_i[1][3:0];
-        env_sustain_o    = sr_i[1][7:4];
-        env_release_o    = sr_i[1][3:0];
-      end
-      default: begin
-        voice_freq_o     = {freq_hi_i[2], freq_lo_i[2]};
-        voice_pw_o       = {pw_hi_i[2][3:0], pw_lo_i[2]};
-        voice_wave_o     = control_i[2][7:4];
-        voice_ring_mod_o = control_i[2][2];
-        voice_sync_o     = control_i[2][1];
-        env_gate_o       = control_i[2][0];
-        env_attack_o     = ad_i[2][7:4];
-        env_decay_o      = ad_i[2][3:0];
-        env_sustain_o    = sr_i[2][7:4];
-        env_release_o    = sr_i[2][3:0];
-      end
-    endcase
-  end
+  assign env_gate_o     = control_i[cur_voice][0];
+  assign env_attack_o   = ad_i[cur_voice][7:4];
+  assign env_decay_o    = ad_i[cur_voice][3:0];
+  assign env_sustain_o  = sr_i[cur_voice][7:4];
+  assign env_release_o  = sr_i[cur_voice][3:0];
 
 
   /************************************
