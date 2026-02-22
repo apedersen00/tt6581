@@ -2,10 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import math
+import os
 
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge, FallingEdge, Timer
+
+# Output directory for all testbench products (plots, CSVs)
+TB_OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "tmp")
+os.makedirs(TB_OUTPUT_DIR, exist_ok=True)
 
 
 # =============================================================================
@@ -335,73 +340,83 @@ async def reset_dut(dut, cycles: int = 10):
 
 
 # =============================================================================
-#  Tests
+#  Plotting / CSV helpers
 # =============================================================================
 
 def plot_audio_samples(samples: list[int], filename: str = "audio_i_plot.png",
-                       title: str = "delta_sigma.audio_i"):
+                       title: str = "delta_sigma.audio_i",
+                       sample_rate: int = SAMPLE_RATE):
     """Save a time-domain plot of captured 14-bit signed audio samples as PNG.
 
-    Also writes the raw sample values to a companion CSV file.
+    X-axis is time in milliseconds.  Also writes a companion CSV.
     """
     import matplotlib
-    matplotlib.use("Agg")  # non-interactive backend (no display needed)
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import csv
 
+    # Time axis in ms
+    t_ms = [i / sample_rate * 1000.0 for i in range(len(samples))]
+
     # ── Write CSV ────────────────────────────────────────────────────────────
-    csv_path = filename.rsplit(".", 1)[0] + ".csv"
+    csv_path = os.path.join(TB_OUTPUT_DIR, filename.rsplit(".", 1)[0] + ".csv")
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["sample_index", "audio_i"])
-        for i, v in enumerate(samples):
-            writer.writerow([i, v])
+        writer.writerow(["time_ms", "audio_i"])
+        for t, v in zip(t_ms, samples):
+            writer.writerow([f"{t:.6f}", v])
 
     # ── Plot ─────────────────────────────────────────────────────────────────
+    plot_path = os.path.join(TB_OUTPUT_DIR, filename)
     fig, ax = plt.subplots(figsize=(12, 4))
-    ax.plot(samples, linewidth=0.6)
-    ax.set_xlabel("Sample index")
+    ax.plot(t_ms, samples, linewidth=0.6)
+    ax.set_xlabel("Time (ms)")
     ax.set_ylabel("audio_i  (signed 14-bit)")
     ax.set_title(title)
     ax.set_ylim(-1024, 1023)
     ax.axhline(0, color="grey", linewidth=0.3)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
-    fig.savefig(filename, dpi=150)
+    fig.savefig(plot_path, dpi=150)
     plt.close(fig)
 
 
-@cocotb.test()
-async def test_audio_i_on_valid(dut):
-    """Configure voice 0 (sawtooth, 440 Hz), capture delta-sigma audio_i
-    samples when audio_valid_i is high, then save a plot + CSV."""
+def plot_multi_overlay(all_traces: list[tuple[str, list[int]]],
+                       filename: str, title: str,
+                       sample_rate: int = SAMPLE_RATE):
+    """Plot multiple sample traces overlaid on the same axes."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
 
-    dut._log.info("=== test_audio_i_on_valid: start ===")
+    fig, ax = plt.subplots(figsize=(14, 5))
+    for label, samples in all_traces:
+        t_ms = [i / sample_rate * 1000.0 for i in range(len(samples))]
+        ax.plot(t_ms, samples, linewidth=0.6, label=label)
+    ax.set_xlabel("Time (ms)")
+    ax.set_ylabel("audio_i  (signed 14-bit)")
+    ax.set_title(title)
+    ax.set_ylim(-1024, 1023)
+    ax.axhline(0, color="grey", linewidth=0.3)
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(os.path.join(TB_OUTPUT_DIR, filename), dpi=150)
+    plt.close(fig)
 
-    # 50 MHz system clock
-    clock = Clock(dut.clk, 20, unit="ns")
-    cocotb.start_soon(clock.start())
 
-    await reset_dut(dut)
+# =============================================================================
+#  Reusable capture routine
+# =============================================================================
 
-    # ── Voice 0: 440 Hz sawtooth ─────────────────────────────────────────────
-    await setup_voice(dut, V0_BASE, freq_hz=1000.0,
-                      waveform=WAVE_SAW, pw=0x800,
-                      attack=0, decay=0, sustain=0xF, release=0)
+async def capture_audio(dut, num_samples: int = 500,
+                        max_clocks: int = 2_000_000,
+                        log_every: int = 100) -> list[int]:
+    """Capture *num_samples* of delta-sigma audio_i (on audio_valid_i pulses).
 
-    # Master volume
-    await set_volume(dut, 0xFF)
-
-    # Gate on (sawtooth)
-    await gate_on(dut, V0_BASE, WAVE_SAW)
-
-    dut._log.info("Voice 0 configured (440 Hz saw, gate ON). "
-                  "Monitoring delta-sigma audio_i …")
-
-    # ── Collect audio_i when audio_valid_i pulses ────────────────────────────
+    Returns a list of signed 14-bit integers.
+    """
     audio_samples: list[int] = []
-    target_samples = 500
-    max_clocks = 2_000_000  # safety limit
 
     for _ in range(max_clocks):
         await RisingEdge(dut.clk)
@@ -410,27 +425,141 @@ async def test_audio_i_on_valid(dut):
             audio_val = get_ds_audio_i(dut)
             audio_samples.append(audio_val)
 
-            # Log every 50th sample to keep output manageable
-            if len(audio_samples) % 50 == 0 or len(audio_samples) <= 5:
+            if log_every and (len(audio_samples) % log_every == 0
+                              or len(audio_samples) <= 3):
                 dut._log.info(
                     f"[sample {len(audio_samples):4d}] "
-                    f"delta_sigma.audio_i = {audio_val:6d}  "
-                    f"(0x{audio_val & 0x3FFF:04X})"
+                    f"audio_i = {audio_val:6d}"
                 )
-            if len(audio_samples) >= target_samples:
+            if len(audio_samples) >= num_samples:
                 break
 
-    dut._log.info(f"Captured {len(audio_samples)} audio_i samples.")
-    assert len(audio_samples) > 0, "No audio_valid_i pulses seen — check tick_gen / controller."
+    return audio_samples
 
-    # ── Gate off and let release run briefly ──────────────────────────────────
-    await gate_off(dut, V0_BASE, WAVE_SAW)
-    await ClockCycles(dut.clk, 5000)
 
-    # ── Save plot + CSV ──────────────────────────────────────────────────────
-    plot_audio_samples(audio_samples,
-                       filename="audio_i_plot.png",
-                       title="delta_sigma.audio_i — 440 Hz Sawtooth")
-    dut._log.info("Saved audio_i_plot.png and audio_i_plot.csv")
+# =============================================================================
+#  Tests
+# =============================================================================
 
-    dut._log.info("=== test_audio_i_on_valid: done ===")
+WAVEFORM_NAMES = {
+    WAVE_TRI:   "Triangle",
+    WAVE_SAW:   "Sawtooth",
+    WAVE_PULSE: "Pulse",
+    WAVE_NOISE: "Noise",
+}
+
+@cocotb.test()
+async def test_waveforms(dut):
+    """Sweep all four waveform types at 440 Hz and plot each one,
+    plus an overlay comparison."""
+
+    dut._log.info("=== test_waveforms: start ===")
+
+    clock = Clock(dut.clk, 20, unit="ns")
+    cocotb.start_soon(clock.start())
+    await reset_dut(dut)
+    await set_volume(dut, 0xFF)
+
+    all_traces: list[tuple[str, list[int]]] = []
+
+    for wave_mask, wave_name in WAVEFORM_NAMES.items():
+        dut._log.info(f"── {wave_name} ──")
+
+        # Reset the voice fully before each waveform
+        await setup_voice(dut, V0_BASE, freq_hz=1000.0,
+                          waveform=wave_mask, pw=0x800,
+                          attack=0, decay=0, sustain=0xF, release=0)
+        await gate_on(dut, V0_BASE, wave_mask)
+
+        # Let the envelope reach sustain before capturing
+        await ClockCycles(dut.clk, 5000)
+
+        samples = await capture_audio(dut, num_samples=500)
+        dut._log.info(f"  Captured {len(samples)} samples for {wave_name}")
+
+        # Individual plot
+        plot_audio_samples(
+            samples,
+            filename=f"wave_{wave_name.lower()}.png",
+            title=f"audio_i — {wave_name} 1000 Hz",
+        )
+
+        all_traces.append((wave_name, samples))
+
+        # Gate off + settle before next waveform
+        await gate_off(dut, V0_BASE, wave_mask)
+        await ClockCycles(dut.clk, 5000)
+
+    # Overlay all waveforms
+    plot_multi_overlay(
+        all_traces,
+        filename="wave_overlay.png",
+        title="audio_i — All Waveforms @ 440 Hz",
+    )
+
+    dut._log.info("=== test_waveforms: done ===")
+
+
+@cocotb.test()
+async def test_envelopes(dut):
+    """Test different ADSR envelope settings with a sawtooth and plot the
+    amplitude envelope over time."""
+
+    dut._log.info("=== test_envelopes: start ===")
+
+    clock = Clock(dut.clk, 20, unit="ns")
+    cocotb.start_soon(clock.start())
+    await reset_dut(dut)
+    await set_volume(dut, 0xFF)
+
+    # Each entry: (label, attack, decay, sustain, release, gate_on_samples, gate_off_samples)
+    envelope_configs = [
+        ("A0 D0 S15 R0  (instant)",     0,  0, 0xF,  0,  300,  200),
+        ("A4 D4 S10 R4  (moderate)",    4,  4, 0xA,  4,  400,  300),
+        ("A8 D6 S8  R8  (slow)",        8,  6, 0x8,  8,  500,  500),
+        ("A0 D0 S15 R15 (long release)",0,  0, 0xF, 0xF, 200,  600),
+        ("A15 D0 S15 R0 (slow attack)", 0xF,0, 0xF,  0,  800,  200),
+    ]
+
+    all_traces: list[tuple[str, list[int]]] = []
+
+    for label, atk, dec, sus, rel, gate_samps, rel_samps in envelope_configs:
+        dut._log.info(f"── Envelope: {label} ──")
+
+        await setup_voice(dut, V0_BASE, freq_hz=440.0,
+                          waveform=WAVE_SAW, pw=0x800,
+                          attack=atk, decay=dec,
+                          sustain=sus, release=rel)
+
+        # Gate ON — capture attack/decay/sustain phase
+        await gate_on(dut, V0_BASE, WAVE_SAW)
+        on_samples = await capture_audio(dut, num_samples=gate_samps)
+
+        # Gate OFF — capture release phase
+        await gate_off(dut, V0_BASE, WAVE_SAW)
+        off_samples = await capture_audio(dut, num_samples=rel_samps)
+
+        combined = on_samples + off_samples
+        dut._log.info(f"  Captured {len(combined)} samples "
+                      f"({len(on_samples)} on + {len(off_samples)} off)")
+
+        safe_name = label.split("(")[0].strip().replace(" ", "_")
+        plot_audio_samples(
+            combined,
+            filename=f"env_{safe_name}.png",
+            title=f"audio_i — Envelope: {label}",
+        )
+
+        all_traces.append((label, combined))
+
+        # Small settle gap
+        await ClockCycles(dut.clk, 5000)
+
+    # Overlay all envelopes
+    plot_multi_overlay(
+        all_traces,
+        filename="env_overlay.png",
+        title="audio_i — Envelope Comparison (Sawtooth 440 Hz)",
+    )
+
+    dut._log.info("=== test_envelopes: done ===")
