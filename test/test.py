@@ -1,75 +1,128 @@
 # SPDX-FileCopyrightText: © 2024 Tiny Tapeout
 # SPDX-License-Identifier: Apache-2.0
 
+import math
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge, FallingEdge, Timer
 
-SPI_FREQ_NS = 200  # Half-period of SPI clock (keep well below 50 MHz sys clk)
+
+# =============================================================================
+#  Constants
+# =============================================================================
+
+SPI_FREQ_NS = 200           # Half-period of SPI clock (keep well below 50 MHz sys clk)
+SYS_CLK_HZ  = 50_000_000
+SAMPLE_RATE = 50_000       # Internal sample rate driven by tick_gen
+
+# ── Per-voice register offsets (relative to voice base) ──────────────────────
+REG_FREQ_LO  = 0x00
+REG_FREQ_HI  = 0x01
+REG_PW_LO    = 0x02
+REG_PW_HI    = 0x03
+REG_CTRL     = 0x04
+REG_AD       = 0x05
+REG_SR       = 0x06
+
+# ── Voice base addresses ────────────────────────────────────────────────────
+V0_BASE = 0x00
+V1_BASE = 0x07
+V2_BASE = 0x0E
+
+# ── Filter registers (absolute) ─────────────────────────────────────────────
+FILT_BASE      = 0x15
+REG_FILT_F_LO  = FILT_BASE + 0x00   # 0x15
+REG_FILT_F_HI  = FILT_BASE + 0x01   # 0x16
+REG_FILT_Q_LO  = FILT_BASE + 0x02   # 0x17
+REG_FILT_Q_HI  = FILT_BASE + 0x03   # 0x18
+REG_FILT_ENMOD = FILT_BASE + 0x04   # 0x19
+REG_FILT_VOL   = FILT_BASE + 0x05   # 0x1A
+
+# ── Waveform select masks (upper nibble of CTRL) ────────────────────────────
+WAVE_TRI   = 0x10
+WAVE_SAW   = 0x20
+WAVE_PULSE = 0x40
+WAVE_NOISE = 0x80
+
+# ── Filter mode bits (EN_MODE[2:0]) ─────────────────────────────────────────
+FILT_LP = 0x01
+FILT_BP = 0x02
+FILT_HP = 0x04
+
+# ── Voice filter-enable bits (EN_MODE[5:3]) ─────────────────────────────────
+FILT_V0 = 0x08
+FILT_V1 = 0x10
+FILT_V2 = 0x20
+
+# ── Note frequencies (Hz) ───────────────────────────────────────────────────
+NOTE_FREQ = {
+    "C2": 65.41,  "D2": 73.42,  "Eb2": 77.78,  "F2": 87.31,
+    "G2": 98.00,  "Ab2": 103.83, "Bb2": 116.54, "B2": 123.47,
+    "C3": 130.81, "D3": 146.83, "Eb3": 155.56, "F3": 174.61,
+    "G3": 196.00, "Ab3": 207.65, "Bb3": 233.08, "B3": 246.94,
+    "C4": 261.63, "D4": 293.66, "Eb4": 311.13, "F4": 349.23,
+    "G4": 392.00, "Ab4": 415.30, "Bb4": 466.16, "B4": 493.88,
+    "C5": 523.25, "D5": 587.33, "Eb5": 622.25, "G5": 783.99,
+}
+
+# =============================================================================
+#  Low-level SPI driver
+# =============================================================================
 
 async def spi_write(dut, addr: int, data: int):
     """Write an 8-bit value to a 7-bit register address over SPI.
 
+    Frame: [1(write) | addr(7) | data(8)], MSB first.
     Drives ui_in[0] (sclk), ui_in[1] (cs), ui_in[2] (mosi).
     """
-    # [1(write) | addr(7) | data(8)]
     word = (1 << 15) | ((addr & 0x7F) << 8) | (data & 0xFF)
-
     base = int(dut.ui_in.value) & ~0x07
 
-    dut.ui_in.value = base | 0x00  # sclk=0, cs=0, mosi=0
+    # Assert CS (low)
+    dut.ui_in.value = base | 0x00
     await Timer(SPI_FREQ_NS, unit="ns")
 
     # Shift out MSB first
     for i in range(15, -1, -1):
         bit = (word >> i) & 1
-        # Drive MOSI, SCLK low
-        dut.ui_in.value = base | (bit << 2) | 0x00  # cs=0, sclk=0
+        dut.ui_in.value = base | (bit << 2) | 0x00   # cs=0, sclk=0
         await Timer(SPI_FREQ_NS, unit="ns")
-        # Rising edge of SCLK
-        dut.ui_in.value = base | (bit << 2) | 0x01  # cs=0, sclk=1
+        dut.ui_in.value = base | (bit << 2) | 0x01   # cs=0, sclk=1
         await Timer(SPI_FREQ_NS, unit="ns")
 
     # SCLK back low
     dut.ui_in.value = base | 0x00
     await Timer(SPI_FREQ_NS, unit="ns")
 
-    # Deassert CS (drive bit 1 high)
-    dut.ui_in.value = base | 0x02  # cs=1
+    # Deassert CS (high)
+    dut.ui_in.value = base | 0x02
     await Timer(SPI_FREQ_NS, unit="ns")
 
 
 async def spi_read(dut, addr: int) -> int:
     """Read an 8-bit value from a 7-bit register address over SPI.
 
-    Returns the byte read back on MISO (uo_out[0]).
+    Frame: [0(read) | addr(7) | 0x00], MSB first.
+    Returns the byte sampled on uo_out[0] (MISO) during the data phase.
     """
-    # Build the 16-bit word: [0(read) | addr(7) | 0x00(don't care)]
-    word = (0 << 15) | ((addr & 0x7F) << 8) | 0x00
-
+    word = ((addr & 0x7F) << 8) | 0x00
     base = int(dut.ui_in.value) & ~0x07
 
-    # Assert CS
     dut.ui_in.value = base | 0x00
     await Timer(SPI_FREQ_NS, unit="ns")
 
     read_val = 0
-
     for i in range(15, -1, -1):
         bit = (word >> i) & 1
-        # SCLK low, drive MOSI
         dut.ui_in.value = base | (bit << 2) | 0x00
         await Timer(SPI_FREQ_NS, unit="ns")
-        # SCLK rising edge
         dut.ui_in.value = base | (bit << 2) | 0x01
         await Timer(SPI_FREQ_NS, unit="ns")
-
-        # During the data phase (bits 7..0), sample MISO on falling edge
         if i <= 7:
             miso_bit = int(dut.uo_out.value) & 0x01
             read_val = (read_val << 1) | miso_bit
 
-    # SCLK low, deassert CS
     dut.ui_in.value = base | 0x00
     await Timer(SPI_FREQ_NS, unit="ns")
     dut.ui_in.value = base | 0x02
@@ -77,79 +130,307 @@ async def spi_read(dut, addr: int) -> int:
 
     return read_val
 
+
+# =============================================================================
+#  Frequency / filter coefficient helpers
+# =============================================================================
+
+def calc_fcw(freq_hz: float) -> int:
+    """Compute the 16-bit frequency control word.
+
+    FCW = freq * 2^19 / 50000   (matches Verilator testbench)
+    """
+    return int(freq_hz * (1 << 19) / SAMPLE_RATE)
+
+
+def get_coeff_f(fc_hz: float) -> int:
+    """Compute the signed 16-bit (Q1.15) filter cutoff coefficient.
+
+    f = 2 * sin(pi * fc / Fs)  scaled to Q1.15
+    """
+    f = 2.0 * math.sin(math.pi * fc_hz / SAMPLE_RATE)
+    val = int(f * 32768.0)
+    # Clamp to signed 16-bit range
+    val = max(-32768, min(32767, val))
+    return val & 0xFFFF
+
+
+def get_coeff_q(q: float) -> int:
+    """Compute the signed 16-bit (Q4.12) filter resonance (damping) coefficient.
+
+    q_damp = 1/Q  scaled to Q4.12
+    """
+    q_damp = 1.0 / q
+    val = int(q_damp * 4096.0)
+    val = max(-32768, min(32767, val))
+    return val & 0xFFFF
+
+
+# =============================================================================
+#  Voice programming helpers
+# =============================================================================
+
+async def set_voice_freq(dut, voice_base: int, freq_hz: float):
+    """Program the frequency control word for a voice."""
+    fcw = calc_fcw(freq_hz)
+    await spi_write(dut, voice_base + REG_FREQ_LO, fcw & 0xFF)
+    await spi_write(dut, voice_base + REG_FREQ_HI, (fcw >> 8) & 0xFF)
+
+
+async def set_voice_pw(dut, voice_base: int, pw: int):
+    """Program the 12-bit pulse width for a voice (0x000 – 0xFFF)."""
+    await spi_write(dut, voice_base + REG_PW_LO, pw & 0xFF)
+    await spi_write(dut, voice_base + REG_PW_HI, (pw >> 8) & 0x0F)
+
+
+async def set_voice_adsr(dut, voice_base: int,
+                         attack: int, decay: int,
+                         sustain: int, release: int):
+    """Program attack/decay/sustain/release (4-bit each) for a voice."""
+    ad = ((attack & 0x0F) << 4) | (decay & 0x0F)
+    sr = ((sustain & 0x0F) << 4) | (release & 0x0F)
+    await spi_write(dut, voice_base + REG_AD, ad)
+    await spi_write(dut, voice_base + REG_SR, sr)
+
+
+async def set_voice_control(dut, voice_base: int,
+                            waveform: int, gate: bool,
+                            ring_mod: bool = False, sync: bool = False):
+    """Program the voice control register.
+
+    waveform: WAVE_TRI / WAVE_SAW / WAVE_PULSE / WAVE_NOISE (or OR-ed combo)
+    gate:     True = start envelope attack, False = release
+    """
+    ctrl = waveform & 0xFE
+    if gate:
+        ctrl |= 0x01
+    if sync:
+        ctrl |= 0x02
+    if ring_mod:
+        ctrl |= 0x04
+    await spi_write(dut, voice_base + REG_CTRL, ctrl)
+
+
+async def setup_voice(dut, voice_base: int, freq_hz: float,
+                      waveform: int, pw: int = 0x800,
+                      attack: int = 0, decay: int = 6,
+                      sustain: int = 0xF, release: int = 6):
+    """Convenience: fully configure a voice (freq + PW + ADSR) in one call.
+
+    Does NOT gate the voice — call set_voice_control() afterwards.
+    """
+    await set_voice_freq(dut, voice_base, freq_hz)
+    await set_voice_pw(dut, voice_base, pw)
+    await set_voice_adsr(dut, voice_base, attack, decay, sustain, release)
+
+
+async def gate_on(dut, voice_base: int, waveform: int,
+                  ring_mod: bool = False, sync: bool = False):
+    """Open the gate (start attack phase)."""
+    await set_voice_control(dut, voice_base, waveform, gate=True,
+                            ring_mod=ring_mod, sync=sync)
+
+
+async def gate_off(dut, voice_base: int, waveform: int):
+    """Close the gate (start release phase)."""
+    await set_voice_control(dut, voice_base, waveform, gate=False)
+
+
+# =============================================================================
+#  Filter programming helpers
+# =============================================================================
+
+async def set_filter(dut, fc_hz: float, q: float, en_mode: int):
+    """Program the filter cutoff, resonance and routing/mode register.
+
+    fc_hz:   cutoff frequency in Hz
+    q:       resonance Q factor (≥ 0.5 typ.)
+    en_mode: OR of FILT_V0/V1/V2 (voice routing) | FILT_LP/BP/HP (mode)
+    """
+    cf = get_coeff_f(fc_hz)
+    cq = get_coeff_q(q)
+    await spi_write(dut, REG_FILT_F_LO, cf & 0xFF)
+    await spi_write(dut, REG_FILT_F_HI, (cf >> 8) & 0xFF)
+    await spi_write(dut, REG_FILT_Q_LO, cq & 0xFF)
+    await spi_write(dut, REG_FILT_Q_HI, (cq >> 8) & 0xFF)
+    await spi_write(dut, REG_FILT_ENMOD, en_mode)
+
+
+async def set_filter_cutoff(dut, fc_hz: float):
+    """Update only the filter cutoff frequency."""
+    cf = get_coeff_f(fc_hz)
+    await spi_write(dut, REG_FILT_F_LO, cf & 0xFF)
+    await spi_write(dut, REG_FILT_F_HI, (cf >> 8) & 0xFF)
+
+
+async def set_filter_q(dut, q: float):
+    """Update only the filter resonance."""
+    cq = get_coeff_q(q)
+    await spi_write(dut, REG_FILT_Q_LO, cq & 0xFF)
+    await spi_write(dut, REG_FILT_Q_HI, (cq >> 8) & 0xFF)
+
+
+async def set_volume(dut, vol: int):
+    """Set the master volume register (0x00 – 0xFF)."""
+    await spi_write(dut, REG_FILT_VOL, vol & 0xFF)
+
+
+# =============================================================================
+#  Signal accessors — read internal RTL signals
+# =============================================================================
+
+def _sid(dut):
+    """Shortcut to the tt6581 instance inside the TT wrapper."""
+    return dut.tt6581.tt6581_inst
+
+
 def get_audio_pre_ds(dut) -> int:
-    """Return the signed 14-bit value feeding the delta-sigma modulator."""
-    raw = dut.tt6581.tt6581_inst.mult_out.value
-    # .value is a cocotb LogicArray — .to_signed() handles sign extension
-    return raw.to_signed()
+    """Return the signed 14-bit value feeding the delta-sigma modulator (mult_out)."""
+    return _sid(dut).mult_out.value.to_signed()
 
 
 def get_bypass_accum(dut) -> int:
-    """Return the 14-bit bypass (unfiltered) accumulator."""
-    return dut.tt6581.tt6581_inst.bypass_accum.value.to_signed()
+    """Return the signed 14-bit bypass (unfiltered) accumulator."""
+    return _sid(dut).bypass_accum.value.to_signed()
 
 
 def get_filter_accum(dut) -> int:
-    """Return the 14-bit filter accumulator."""
-    return dut.tt6581.tt6581_inst.filter_accum.value.to_signed()
+    """Return the signed 14-bit filter accumulator."""
+    return _sid(dut).filter_accum.value.to_signed()
 
-REG_V0_FREQ_LO  = 0x00
-REG_V0_FREQ_HI  = 0x01
-REG_V0_PW_LO    = 0x02
-REG_V0_PW_HI    = 0x03
-REG_V0_CONTROL  = 0x04
-REG_V0_AD       = 0x05
-REG_V0_SR       = 0x06
-REG_FILT_VOLUME = 0x1A
+
+def get_audio_valid(dut) -> bool:
+    """Return True when audio_valid is asserted (new sample ready)."""
+    return bool(_sid(dut).audio_valid.value)
+
+
+def get_ds_audio_i(dut) -> int:
+    """Return the signed 14-bit audio_i inside the delta-sigma module."""
+    return _sid(dut).delta_sigma_inst.audio_i.value.to_signed()
+
+
+def get_ds_audio_valid(dut) -> bool:
+    """Return the audio_valid_i flag inside the delta-sigma module."""
+    return bool(_sid(dut).delta_sigma_inst.audio_valid_i.value)
+
+
+def get_wave_o(dut) -> int:
+    """Return the 1-bit PDM output."""
+    return int(_sid(dut).delta_sigma_inst.wave_o.value)
+
+
+# =============================================================================
+#  Reset helper
+# =============================================================================
+
+async def reset_dut(dut, cycles: int = 10):
+    """Assert reset for *cycles* clocks, then deassert and settle."""
+    dut.ena.value = 1
+    dut.ui_in.value = 0x02   # cs=1 (deasserted), sclk=0, mosi=0
+    dut.uio_in.value = 0
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, cycles)
+    dut.rst_n.value = 1
+    await ClockCycles(dut.clk, cycles)
+
+
+# =============================================================================
+#  Tests
+# =============================================================================
+
+def plot_audio_samples(samples: list[int], filename: str = "audio_i_plot.png",
+                       title: str = "delta_sigma.audio_i"):
+    """Save a time-domain plot of captured 14-bit signed audio samples as PNG.
+
+    Also writes the raw sample values to a companion CSV file.
+    """
+    import matplotlib
+    matplotlib.use("Agg")  # non-interactive backend (no display needed)
+    import matplotlib.pyplot as plt
+    import csv
+
+    # ── Write CSV ────────────────────────────────────────────────────────────
+    csv_path = filename.rsplit(".", 1)[0] + ".csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["sample_index", "audio_i"])
+        for i, v in enumerate(samples):
+            writer.writerow([i, v])
+
+    # ── Plot ─────────────────────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(12, 4))
+    ax.plot(samples, linewidth=0.6)
+    ax.set_xlabel("Sample index")
+    ax.set_ylabel("audio_i  (signed 14-bit)")
+    ax.set_title(title)
+    ax.set_ylim(-1024, 1023)
+    ax.axhline(0, color="grey", linewidth=0.3)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(filename, dpi=150)
+    plt.close(fig)
+
 
 @cocotb.test()
-async def test_project(dut):
-    dut._log.info("Start")
+async def test_audio_i_on_valid(dut):
+    """Configure voice 0 (sawtooth, 440 Hz), capture delta-sigma audio_i
+    samples when audio_valid_i is high, then save a plot + CSV."""
+
+    dut._log.info("=== test_audio_i_on_valid: start ===")
 
     # 50 MHz system clock
     clock = Clock(dut.clk, 20, unit="ns")
     cocotb.start_soon(clock.start())
 
-    # ── Reset ──
-    dut._log.info("Reset")
-    dut.ena.value = 1
-    dut.ui_in.value = 0x02   # cs=1 (deasserted), sclk=0, mosi=0
-    dut.uio_in.value = 0
-    dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 10)
-    dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 10)
+    await reset_dut(dut)
 
-    # ── Configure voice 0 via SPI ──
-    dut._log.info("Configuring voice 0 via SPI")
+    # ── Voice 0: 440 Hz sawtooth ─────────────────────────────────────────────
+    await setup_voice(dut, V0_BASE, freq_hz=1000.0,
+                      waveform=WAVE_SAW, pw=0x800,
+                      attack=0, decay=0, sustain=0xF, release=0)
 
-    # Set frequency (16-bit freq word = 0x1CD8 ≈ 440 Hz equivalent)
-    await spi_write(dut, REG_V0_FREQ_LO, 0xD8)
-    await spi_write(dut, REG_V0_FREQ_HI, 0x1C)
+    # Master volume
+    await set_volume(dut, 0xFF)
 
-    # Set pulse width for pulse wave (not needed for saw, but good to set)
-    await spi_write(dut, REG_V0_PW_LO, 0x00)
-    await spi_write(dut, REG_V0_PW_HI, 0x08)  # 50% duty cycle
+    # Gate on (sawtooth)
+    await gate_on(dut, V0_BASE, WAVE_SAW)
 
-    # Set envelope: fast attack (0), mid decay (6), sustain=F, mid release (6)
-    await spi_write(dut, REG_V0_AD, 0x06)      # attack=0, decay=6
-    await spi_write(dut, REG_V0_SR, 0xF6)      # sustain=F, release=6
+    dut._log.info("Voice 0 configured (440 Hz saw, gate ON). "
+                  "Monitoring delta-sigma audio_i …")
 
-    # Set master volume
-    await spi_write(dut, REG_FILT_VOLUME, 0xFF)
+    # ── Collect audio_i when audio_valid_i pulses ────────────────────────────
+    audio_samples: list[int] = []
+    target_samples = 500
+    max_clocks = 2_000_000  # safety limit
 
-    # Set control: sawtooth wave (0010) + gate on (bit 0)
-    # control[7:4]=wave_sel, [2]=ring_mod, [1]=sync, [0]=gate
-    await spi_write(dut, REG_V0_CONTROL, 0x21)  # saw + gate
+    for _ in range(max_clocks):
+        await RisingEdge(dut.clk)
 
-    dut._log.info("Voice 0 configured, waiting for audio output...")
+        if get_ds_audio_valid(dut):
+            audio_val = get_ds_audio_i(dut)
+            audio_samples.append(audio_val)
 
-    for i in range(20):
-        await ClockCycles(dut.clk, 1000)
+            # Log every 50th sample to keep output manageable
+            if len(audio_samples) % 50 == 0 or len(audio_samples) <= 5:
+                dut._log.info(
+                    f"[sample {len(audio_samples):4d}] "
+                    f"delta_sigma.audio_i = {audio_val:6d}  "
+                    f"(0x{audio_val & 0x3FFF:04X})"
+                )
+            if len(audio_samples) >= target_samples:
+                break
 
-        audio_val = get_audio_pre_ds(dut)
-        bypass_val = get_bypass_accum(dut)
-        dut._log.info(
-            f"Sample {i:2d}: mult_out={audio_val:6d}  "
-            f"bypass_accum={bypass_val:6d}"
-        )
+    dut._log.info(f"Captured {len(audio_samples)} audio_i samples.")
+    assert len(audio_samples) > 0, "No audio_valid_i pulses seen — check tick_gen / controller."
+
+    # ── Gate off and let release run briefly ──────────────────────────────────
+    await gate_off(dut, V0_BASE, WAVE_SAW)
+    await ClockCycles(dut.clk, 5000)
+
+    # ── Save plot + CSV ──────────────────────────────────────────────────────
+    plot_audio_samples(audio_samples,
+                       filename="audio_i_plot.png",
+                       title="delta_sigma.audio_i — 440 Hz Sawtooth")
+    dut._log.info("Saved audio_i_plot.png and audio_i_plot.csv")
+
+    dut._log.info("=== test_audio_i_on_valid: done ===")
