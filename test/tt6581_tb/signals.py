@@ -72,7 +72,8 @@ async def reset_dut(dut, cycles: int = 10):
 async def capture_audio(dut, num_samples: int = 500,
                         max_clocks: int = 2_000_000,
                         log_every: int = 100) -> list[int]:
-    """Capture *num_samples* of delta-sigma audio_i (on audio_valid_i pulses).
+    """
+    Capture N samples of delta-sigma audio_i (on audio_valid_i pulses).
 
     Returns a list of signed 14-bit integers.
     """
@@ -85,8 +86,7 @@ async def capture_audio(dut, num_samples: int = 500,
             audio_val = get_ds_audio_i(dut)
             audio_samples.append(audio_val)
 
-            if log_every and (len(audio_samples) % log_every == 0
-                              or len(audio_samples) <= 3):
+            if log_every and len(audio_samples) % log_every == 0:
                 dut._log.info(
                     f"[sample {len(audio_samples):4d}] "
                     f"audio_i = {audio_val:6d}"

@@ -62,9 +62,8 @@ async def setup_voice(dut, voice_base: int, freq_hz: float,
                       waveform: int, pw: int = 0x800,
                       attack: int = 0, decay: int = 6,
                       sustain: int = 0xF, release: int = 6):
-    """Convenience: fully configure a voice (freq + PW + ADSR) in one call.
-
-    Does NOT gate the voice — call set_voice_control() afterwards.
+    """
+    Configure a voice (freq + PW + ADSR).
     """
     await set_voice_freq(dut, voice_base, freq_hz)
     await set_voice_pw(dut, voice_base, pw)
