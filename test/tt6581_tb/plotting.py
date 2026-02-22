@@ -42,7 +42,10 @@ def plot_envelope(samples: list[int], att, dec, sus, rel, gate_samps, filename: 
 
     # Decay
     tau_dec = dec / 3
-    t_sus_cross = -tau_dec * np.log(sus)
+    if sus > 0:
+        t_sus_cross = -tau_dec * np.log(sus)
+    else:
+        t_sus_cross = tau_dec * 5
     t_dec = np.linspace(0, t_sus_cross, 200)
     decay_curve = peak * np.exp(-t_dec / tau_dec)
     ax.plot(att + t_dec, decay_curve, **env_style)
@@ -50,6 +53,8 @@ def plot_envelope(samples: list[int], att, dec, sus, rel, gate_samps, filename: 
     # Sustain
     t_dec_end = att + t_sus_cross
     ax.plot((t_dec_end, t_gate_off), (sus_level, sus_level), **env_style)
+
+    ax.axvline(x=t_gate_off, color='red', linestyle=':', linewidth=1.5, alpha=0.8, label='Gate off')
 
     # Release
     tau_rel = rel / 3

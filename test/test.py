@@ -143,9 +143,7 @@ async def test_envelopes(dut):
     envelope_configs = [
         ("A0 D0 S15 R0  (instant)",     0,  0, 0xF,  0,  50*20,  50*12),   # 2ms, 6ms, 6ms
         ("A4 D4 S10 R4  (moderate)",    4,  4, 0xA,  4,  50*150,  50*120), # 38ms, 114m, 114ms
-        #("A8 D6 S8  R8  (slow)",        8,  6, 0x8,  8,  500,  500),
-        #("A0 D0 S15 R15 (long release)",0,  0, 0xF, 0xF, 500,  500),
-        #("A15 D0 S15 R0 (slow attack)", 0xF,0, 0xF,  0,  500,  500),
+        ("A0 D9 S0  R9  (slow)",        0,  8, 0x0,  8,  50*500,  500),    # 2ms, 300ms, 300ms
     ]
 
     all_traces: list[tuple[str, list[int]]] = []
