@@ -95,24 +95,9 @@ module multi_voice (
 
     end else begin
       if (cur_state == STATE_WRITE) begin
-        // Use explicit case to avoid variable-indexed writes (Icarus 12.0 segfault)
-        case (act_voice_i)
-          2'd0: begin
-            phase_regs[0]     <= nxt_phase;
-            lfsr_regs[0]      <= nxt_lfsr;
-            phase_last_msb[0] <= {phase_last_msb[0][0], nxt_phase[18]};
-          end
-          2'd1: begin
-            phase_regs[1]     <= nxt_phase;
-            lfsr_regs[1]      <= nxt_lfsr;
-            phase_last_msb[1] <= {phase_last_msb[1][0], nxt_phase[18]};
-          end
-          default: begin
-            phase_regs[2]     <= nxt_phase;
-            lfsr_regs[2]      <= nxt_lfsr;
-            phase_last_msb[2] <= {phase_last_msb[2][0], nxt_phase[18]};
-          end
-        endcase
+        phase_regs[act_voice_i] <= nxt_phase;
+        lfsr_regs[act_voice_i]  <= nxt_lfsr;
+        phase_last_msb[act_voice_i] <= {phase_last_msb[act_voice_i][0], nxt_phase[18]};
         ready_o <= 1'b1;
       end else begin
         ready_o <= 1'b0;
@@ -123,21 +108,8 @@ module multi_voice (
   /************************************
    * Wave generation
    ***********************************/
-  // Use always_comb + case for Icarus compatibility (variable array indexing)
-  always_comb begin
-    case (act_voice_i)
-      2'd0:    cur_phase = phase_regs[0];
-      2'd1:    cur_phase = phase_regs[1];
-      default: cur_phase = phase_regs[2];
-    endcase
-  end
-  always_comb begin
-    case (act_voice_i)
-      2'd0:    cur_lfsr = lfsr_regs[0];
-      2'd1:    cur_lfsr = lfsr_regs[1];
-      default: cur_lfsr = lfsr_regs[2];
-    endcase
-  end
+  assign cur_phase = phase_regs[act_voice_i];
+  assign cur_lfsr  = lfsr_regs[act_voice_i];
 
   // TODO: Fix this. Instead of scaling freq_word, fix the calculation and bits required
   // due to now only updating it 50 kHz (on sample_tick)
@@ -152,15 +124,7 @@ module multi_voice (
   end
 
   logic prev_voice_rising_edge;
-  logic [1:0] prev_phase_last_msb;
-  always_comb begin
-    case (prev_voice)
-      2'd0:    prev_phase_last_msb = phase_last_msb[0];
-      2'd1:    prev_phase_last_msb = phase_last_msb[1];
-      default: prev_phase_last_msb = phase_last_msb[2];
-    endcase
-  end
-  assign prev_voice_rising_edge = (prev_phase_last_msb == 2'b01);
+  assign prev_voice_rising_edge = (phase_last_msb[prev_voice] == 2'b01);
 
   always_comb begin
     nxt_phase = cur_phase + {3'd0, freq_word_i};
@@ -171,15 +135,7 @@ module multi_voice (
 
   // Ring modulation
   logic tri_fold;
-  logic [18:0] prev_phase;
-  always_comb begin
-    case (prev_voice)
-      2'd0:    prev_phase = phase_regs[0];
-      2'd1:    prev_phase = phase_regs[1];
-      default: prev_phase = phase_regs[2];
-    endcase
-  end
-  assign tri_fold = ring_mod_i ? (nxt_phase[18] ^ prev_phase[18]) : nxt_phase[18];
+  assign tri_fold = ring_mod_i ? (nxt_phase[18] ^ phase_regs[prev_voice][18]) : nxt_phase[18];
 
   assign wave_saw   = {nxt_phase[18], nxt_phase[17:9]};
   assign wave_tri   = (tri_fold ? ~nxt_phase[17:8] : nxt_phase[17:8]) ^ 10'h200;
