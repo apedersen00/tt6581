@@ -13,6 +13,10 @@ jobs:
         shell: bash
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
+      - name: Install verilator
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y verilator
+
       # Set Python up and install cocotb
       - name: Setup python
         uses: actions/setup-python@v5
