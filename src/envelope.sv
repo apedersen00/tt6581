@@ -143,12 +143,16 @@ module envelope (
         voice_states[i] <= STATE_RELEASE;
       end
     end else if (cur_state == STATE_ADSR) begin
+`ifdef SYNTHESIS
+      voice_states[voice_idx_i] <= nxt_voice_state;
+`else
       // Use explicit case to avoid variable-indexed writes (Icarus 12.0 segfault)
       case (voice_idx_i)
         2'd0:    voice_states[0] <= nxt_voice_state;
         2'd1:    voice_states[1] <= nxt_voice_state;
         default: voice_states[2] <= nxt_voice_state;
       endcase
+`endif
     end
   end
 
@@ -237,12 +241,16 @@ module envelope (
       end
     end else begin
       if (cur_state == STATE_ADSR) begin
+`ifdef SYNTHESIS
+        vol_regs[voice_idx_i] <= nxt_vol;
+`else
         // Use explicit case to avoid variable-indexed writes (Icarus 12.0 segfault)
         case (voice_idx_i)
           2'd0:    vol_regs[0] <= nxt_vol;
           2'd1:    vol_regs[1] <= nxt_vol;
           default: vol_regs[2] <= nxt_vol;
         endcase
+`endif
       end
     end
   end

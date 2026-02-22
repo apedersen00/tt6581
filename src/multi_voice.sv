@@ -95,6 +95,11 @@ module multi_voice (
 
     end else begin
       if (cur_state == STATE_WRITE) begin
+`ifdef SYNTHESIS
+        phase_regs[act_voice_i]     <= nxt_phase;
+        lfsr_regs[act_voice_i]      <= nxt_lfsr;
+        phase_last_msb[act_voice_i] <= {phase_last_msb[act_voice_i][0], nxt_phase[18]};
+`else
         // Use explicit case to avoid variable-indexed writes (Icarus 12.0 segfault)
         case (act_voice_i)
           2'd0: begin
@@ -113,6 +118,7 @@ module multi_voice (
             phase_last_msb[2] <= {phase_last_msb[2][0], nxt_phase[18]};
           end
         endcase
+`endif
         ready_o <= 1'b1;
       end else begin
         ready_o <= 1'b0;
