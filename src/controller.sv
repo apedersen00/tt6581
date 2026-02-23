@@ -54,13 +54,13 @@ module controller (
   input   logic               sample_tick_i,  // 50 kHz tick
 
   // Register file
-  input logic [2:0][7:0]      freq_lo_i,
-  input logic [2:0][7:0]      freq_hi_i,
-  input logic [2:0][7:0]      pw_lo_i,
-  input logic [2:0][7:0]      pw_hi_i,
-  input logic [2:0][7:0]      control_i,
-  input logic [2:0][7:0]      ad_i,
-  input logic [2:0][7:0]      sr_i,
+  input logic [23:0]            freq_lo_i,
+  input logic [23:0]            freq_hi_i,
+  input logic [23:0]            pw_lo_i,
+  input logic [23:0]            pw_hi_i,
+  input logic [23:0]            control_i,
+  input logic [23:0]            ad_i,
+  input logic [23:0]            sr_i,
 
   // Voice generator
   input   logic               voice_ready_i,  // Voice ready
@@ -105,17 +105,17 @@ module controller (
   logic [1:0] cur_voice;
 
   assign voice_idx_o      = cur_voice;
-  assign voice_freq_o     = {freq_hi_i[cur_voice], freq_lo_i[cur_voice]};
-  assign voice_pw_o       = {pw_hi_i[cur_voice][3:0], pw_lo_i[cur_voice]};
-  assign voice_wave_o     = control_i[cur_voice][7:4];
-  assign voice_ring_mod_o = control_i[cur_voice][2];
-  assign voice_sync_o     = control_i[cur_voice][1];
+  assign voice_freq_o     = {freq_hi_i[cur_voice*8 +: 8], freq_lo_i[cur_voice*8 +: 8]};
+  assign voice_pw_o       = {pw_hi_i[cur_voice*8 +: 4], pw_lo_i[cur_voice*8 +: 8]};
+  assign voice_wave_o     = control_i[cur_voice*8+4 +: 4];
+  assign voice_ring_mod_o = control_i[cur_voice*8+2];
+  assign voice_sync_o     = control_i[cur_voice*8+1];
 
-  assign env_gate_o     = control_i[cur_voice][0];
-  assign env_attack_o   = ad_i[cur_voice][7:4];
-  assign env_decay_o    = ad_i[cur_voice][3:0];
-  assign env_sustain_o  = sr_i[cur_voice][7:4];
-  assign env_release_o  = sr_i[cur_voice][3:0];
+  assign env_gate_o     = control_i[cur_voice*8];
+  assign env_attack_o   = ad_i[cur_voice*8+4 +: 4];
+  assign env_decay_o    = ad_i[cur_voice*8 +: 4];
+  assign env_sustain_o  = sr_i[cur_voice*8+4 +: 4];
+  assign env_release_o  = sr_i[cur_voice*8 +: 4];
 
 
   /************************************

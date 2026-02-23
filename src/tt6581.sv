@@ -43,13 +43,13 @@ module tt6581 (
   logic [6:0] reg_addr;
   logic       reg_we;
 
-  logic [2:0][7:0] freq_lo_pack;
-  logic [2:0][7:0] freq_hi_pack;
-  logic [2:0][7:0] pw_lo_pack;
-  logic [2:0][7:0] pw_hi_pack;
-  logic [2:0][7:0] control_pack;
-  logic [2:0][7:0] ad_pack;
-  logic [2:0][7:0] sr_pack;
+  logic [23:0] freq_lo_pack;
+  logic [23:0] freq_hi_pack;
+  logic [23:0] pw_lo_pack;
+  logic [23:0] pw_hi_pack;
+  logic [23:0] control_pack;
+  logic [23:0] ad_pack;
+  logic [23:0] sr_pack;
 
   // Voice
   logic         voice_ready;
