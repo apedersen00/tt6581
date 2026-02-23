@@ -14,16 +14,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
       - name: Install verilator
-        shell: bash
-        run: |
-          sudo apt-get update && sudo apt-get install -y git help2man perl python3 make autoconf g++ flex bison ccache libgoogle-perftools-dev numactl perl-doc zlib1g-dev
-          git clone https://github.com/verilator/verilator.git /tmp/verilator
-          cd /tmp/verilator
-          git checkout v5.040
-          autoconf
-          ./configure
-          make -j$(nproc)
-          sudo make install
+        uses: verilator/setup-verilator@v1
+        with:
+          verilator-version: v5.040
 
       # Set Python up and install cocotb
       - name: Setup python
