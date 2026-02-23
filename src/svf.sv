@@ -68,12 +68,12 @@ module svf (
 
   state_e cur_state, nxt_state;
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni)  cur_state <= STATE_IDLE;
     else          cur_state <= nxt_state;
   end
 
-  always_comb begin
+  always @(*) begin
     nxt_state = cur_state;
     unique case (cur_state)
       STATE_IDLE:     if (start_i)      nxt_state = STATE_MULT_Q;
@@ -110,7 +110,7 @@ module svf (
   /************************************
    * Multiplication
    ***********************************/
-  always_comb begin
+  always @(*) begin
     mult_a_o     = '0;
     mult_b_o     = '0;
     mult_start_o = 1'b0;
@@ -138,7 +138,7 @@ module svf (
   /************************************
    * Filter computation
    ***********************************/
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       reg_band <= '0;
       reg_low  <= '0;
@@ -172,7 +172,7 @@ module svf (
   assign br_node = hp_node + lp_node;
 
   logic signed [23:0] selected_out;
-  always_comb begin
+  always @(*) begin
     case (filt_sel_i)
       3'b001:  selected_out = lp_node;
       3'b010:  selected_out = bp_node;
@@ -182,7 +182,7 @@ module svf (
     endcase
   end
 
-  always_comb begin
+  always @(*) begin
     if (selected_out > 24'sd8191)       wave_o = 14'sd8191;
     else if (selected_out < -24'sd8192) wave_o = -14'sd8192;
     else                                wave_o = selected_out[13:0];

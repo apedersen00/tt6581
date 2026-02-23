@@ -25,7 +25,7 @@ module tick_gen (
 );
   logic [9:0] cnt;
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       cnt    <= 0;
       tick_o <= 0;

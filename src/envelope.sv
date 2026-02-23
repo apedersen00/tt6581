@@ -86,17 +86,23 @@ module envelope (
 
   state_e cur_state, nxt_state;
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni)  cur_state <= STATE_IDLE;
     else          cur_state <= nxt_state;
   end
 
-  always_comb begin
+  always @(*) begin
     nxt_state   = cur_state;
     unique case (cur_state)
-      STATE_IDLE:   nxt_state = start_i       ? STATE_ADSR  : STATE_IDLE;
+      STATE_IDLE: begin
+        if (start_i) nxt_state = STATE_ADSR;
+        else         nxt_state = STATE_IDLE;
+      end
       STATE_ADSR:   nxt_state = STATE_MULT;
-      STATE_MULT:   nxt_state = mult_ready_i  ? STATE_DONE  : STATE_MULT;
+      STATE_MULT: begin
+        if (mult_ready_i) nxt_state = STATE_DONE;
+        else              nxt_state = STATE_MULT;
+      end
       STATE_DONE:   nxt_state = STATE_IDLE;
       default: ;
     endcase
@@ -115,9 +121,11 @@ module envelope (
   voice_state_e voice_states [2:0];
   voice_state_e cur_voice_state, nxt_voice_state;
 
-  assign cur_voice_state = voice_states[voice_idx_i];
+  logic [1:0] cur_voice_state_bits;
+  always @(*) cur_voice_state_bits = voice_states[voice_idx_i];
+  assign cur_voice_state = voice_state_e'(cur_voice_state_bits);
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       for (int i = 0; i < 3; i++) begin
         voice_states[i] <= STATE_RELEASE;
@@ -127,7 +135,7 @@ module envelope (
     end
   end
 
-  always_comb begin
+  always @(*) begin
     nxt_voice_state = cur_voice_state;
 
     // Always go to release if gate goes low
@@ -140,8 +148,14 @@ module envelope (
     end
     else begin
       unique case (cur_voice_state)
-        STATE_ATTACK:   nxt_voice_state = (cur_vol >= MAX_VOL)      ? STATE_DECAY   : STATE_ATTACK;
-        STATE_DECAY:    nxt_voice_state = (cur_vol <= sustain_vol)  ? STATE_SUSTAIN : STATE_DECAY;
+        STATE_ATTACK: begin
+          if (cur_vol >= MAX_VOL) nxt_voice_state = STATE_DECAY;
+          else                   nxt_voice_state = STATE_ATTACK;
+        end
+        STATE_DECAY: begin
+          if (cur_vol <= sustain_vol) nxt_voice_state = STATE_SUSTAIN;
+          else                       nxt_voice_state = STATE_DECAY;
+        end
         STATE_SUSTAIN:  nxt_voice_state = STATE_SUSTAIN;
         STATE_RELEASE:  nxt_voice_state = STATE_RELEASE;
         default: ;
@@ -152,7 +166,7 @@ module envelope (
   /************************************
    * Map delays
    ***********************************/
-  always_comb begin
+  always @(*) begin
     attack_lut = 0;
     decay_lut  = 0;
 
@@ -193,13 +207,14 @@ module envelope (
       4'hD: decay_lut = 18'd92;
       4'hE: decay_lut = 18'd55;
       4'hF: decay_lut = 18'd32;
+      default: ;
     endcase
   end
 
   /************************************
    * Calculate volume
    ***********************************/
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       for (int i = 0; i < 3; i++) begin
         vol_regs[i] <= 0;
@@ -214,14 +229,14 @@ module envelope (
   logic [1:0] exp_shift;
   logic [23:0] step;
 
-  always_comb begin
+  always @(*) begin
     if      (cur_vol[23]) exp_shift = 0;  // 1
     else if (cur_vol[22]) exp_shift = 1;  // 1/2
     else if (cur_vol[21]) exp_shift = 2;  // 1/4
     else                  exp_shift = 3;  // 1/8
   end
 
-  always_comb begin
+  always @(*) begin
     if (nxt_voice_state == STATE_ATTACK) begin
       step = attack_step;
     end else begin
@@ -229,7 +244,7 @@ module envelope (
     end
   end
 
-  always_comb begin
+  always @(*) begin
     nxt_vol = cur_vol;
     unique case (nxt_voice_state)
       STATE_ATTACK: begin

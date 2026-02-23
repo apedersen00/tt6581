@@ -35,7 +35,7 @@ module delta_sigma (
   logic [2:0] cnt;
   logic       en;
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       cnt <= '0;
       en  <= '0;
@@ -55,7 +55,7 @@ module delta_sigma (
    ***********************************/
   logic signed [18:0] audio;
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni)            audio <= '0;
     else if (audio_valid_i) audio <= {{4{audio_i[13]}}, audio_i, 1'b0};
   end
@@ -70,7 +70,7 @@ module delta_sigma (
 
   assign y = audio + (e1 <<< 1) - e2;
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       e1 <= '0;
       e2 <= '0;
