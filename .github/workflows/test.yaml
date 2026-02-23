@@ -42,6 +42,10 @@ jobs:
           paths: "test/results.xml"
         if: always()
 
+      - name: Generate test summary with plots
+        if: always()
+        run: python test/gen_summary.py
+
       - name: upload waveform and test results
         if: success() || failure()
         uses: actions/upload-artifact@v4
@@ -50,4 +54,4 @@ jobs:
           path: |
             test/tb.fst
             test/results.xml
-            test/output/*
+            test/tmp/*
