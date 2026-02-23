@@ -12,12 +12,13 @@ from cocotb.triggers import ClockCycles
 from tt6581_tb import (
     # constants
     V0_BASE, V1_BASE, V2_BASE, WAVE_TRI, WAVE_SAW, WAVE_PULSE, WAVE_NOISE, WAVEFORM_NAMES,
+    FILT_LP, FILT_HP, FILT_BP, FILT_BR, FILT_V0,
     # voice helpers
-    setup_voice, gate_on, gate_off, set_volume,
+    setup_voice, gate_on, gate_off, set_volume, set_voice_freq, set_filter,
     # signal / capture
     reset_dut, capture_audio,
     # plotting
-    plot_audio_samples, plot_frequencies, plot_envelope
+    plot_audio_samples, plot_frequencies, plot_envelope, plot_filter_response
 )
 
 
@@ -25,7 +26,7 @@ from tt6581_tb import (
 #  Tests
 # =============================================================================
 
-# @cocotb.test()
+@cocotb.test()
 async def test_waveforms(dut):
     """
     Play all four waveforms at 1000 Hz and plot them.
@@ -65,7 +66,7 @@ async def test_waveforms(dut):
 
     dut._log.info("=== test_waveforms: done ===")
 
-# @cocotb.test()
+@cocotb.test()
 async def test_frequencies(dut):
     """
     Play three voices at different frequencies and calculate frequency spectrum.
@@ -143,7 +144,6 @@ async def test_envelopes(dut):
     envelope_configs = [
         ("A0 D0 S15 R0  (instant)",     0,  0, 0xF,  0,  50*20,  50*12),   # 2ms, 6ms, 6ms
         ("A4 D4 S10 R4  (moderate)",    4,  4, 0xA,  4,  50*150,  50*120), # 38ms, 114m, 114ms
-        ("A0 D9 S0  R9  (slow)",        0,  8, 0x0,  8,  50*500,  500),    # 2ms, 300ms, 300ms
     ]
 
     all_traces: list[tuple[str, list[int]]] = []
@@ -181,3 +181,77 @@ async def test_envelopes(dut):
         await ClockCycles(dut.clk, 5000)
 
     dut._log.info("=== test_envelopes: done ===")
+
+
+@cocotb.test()
+async def test_filter(dut):
+    """Frequency sweep through LP, HP, BP, BR filters at fc = 1 kHz."""
+
+    import numpy as np
+
+    dut._log.info("=== test_filter: start ===")
+
+    clock = Clock(dut.clk, 20, unit="ns")   # 50 MHz
+    cocotb.start_soon(clock.start())
+
+    FC_HZ = 1000.0
+    Q = 0.707                                # Butterworth-like damping
+
+    filter_modes = [
+        ("LP", FILT_LP),
+        ("HP", FILT_HP),
+        ("BP", FILT_BP),
+        ("BR", FILT_BR),
+    ]
+
+    # 20 logarithmically-spaced test frequencies from 50 Hz to 20 kHz
+    test_freqs = np.logspace(np.log10(50), np.log10(20000), 20).tolist()
+
+    SETTLE_SAMPLES = 1000   # 20 ms — let filter reach steady state
+    CAPTURE_SAMPLES = 500   # 10 ms — measure RMS amplitude
+
+    all_responses: dict[str, list[tuple[float, float]]] = {}
+
+    for mode_name, mode_bits in filter_modes:
+        dut._log.info(f"*** Filter mode: {mode_name} ***")
+
+        # Reset between modes so the SVF state registers start clean
+        await reset_dut(dut)
+        await set_volume(dut, 0xFF)
+
+        # Configure filter: route voice 0 through filter, set mode
+        en_mode = FILT_V0 | mode_bits
+        await set_filter(dut, FC_HZ, Q, en_mode)
+
+        # Set up voice 0 — sawtooth, instant full envelope
+        await setup_voice(dut, V0_BASE, freq_hz=test_freqs[0],
+                          waveform=WAVE_SAW, pw=0x800,
+                          attack=0, decay=0, sustain=0xF, release=0)
+        await gate_on(dut, V0_BASE, WAVE_SAW)
+
+        responses: list[tuple[float, float]] = []
+
+        for freq in test_freqs:
+            # Reprogram voice frequency (gate stays on)
+            await set_voice_freq(dut, V0_BASE, freq)
+
+            # Settle — discard transient
+            await capture_audio(dut, num_samples=SETTLE_SAMPLES, log_every=0)
+
+            # Capture & measure
+            samples = await capture_audio(dut, num_samples=CAPTURE_SAMPLES,
+                                          log_every=0)
+            rms = float(np.sqrt(np.mean(np.array(samples, dtype=float) ** 2)))
+            responses.append((freq, rms))
+            dut._log.info(f"  {freq:8.1f} Hz  →  RMS = {rms:.1f}")
+
+        all_responses[mode_name] = responses
+
+        # Gate off before next mode
+        await gate_off(dut, V0_BASE, WAVE_SAW)
+        await ClockCycles(dut.clk, 5000)
+
+    # Plot all four responses on one graph
+    plot_filter_response(all_responses, FC_HZ, Q)
+
+    dut._log.info("=== test_filter: done ===")

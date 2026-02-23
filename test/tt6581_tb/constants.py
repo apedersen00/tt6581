@@ -79,6 +79,14 @@ WAVEFORM_NAMES = {
 FILT_LP = 0x01
 FILT_BP = 0x02
 FILT_HP = 0x04
+FILT_BR = 0x05  # Band-reject (LP | HP)
+
+FILTER_MODE_NAMES = {
+    FILT_LP: "LP",
+    FILT_BP: "BP",
+    FILT_HP: "HP",
+    FILT_BR: "BR",
+}
 
 # =============================================================================
 #  Voice filter-enable bits (EN_MODE[5:3])

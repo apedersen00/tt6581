@@ -229,3 +229,74 @@ def plot_frequencies(samples: list[int],
         'detected_freqs': detected_freqs,
         'expected_freqs': list(expected_freqs),
     }
+
+
+def plot_filter_response(responses: dict[str, list[tuple[float, float]]],
+                         fc_hz: float,
+                         q: float,
+                         filename: str = "filter_response.png",
+                         sample_rate: int = SAMPLE_RATE):
+    """Plot SVF frequency response for multiple filter modes.
+
+    Parameters
+    ----------
+    responses : dict
+        mode_name -> list of (frequency_hz, rms_amplitude) tuples.
+    fc_hz : float
+        Filter cutoff frequency in Hz.
+    q : float
+        Filter Q factor.
+    filename : str
+        Output PNG filename (saved under TB_OUTPUT_DIR).
+    sample_rate : int
+        Sample rate used during capture.
+    """
+    # Find global max RMS for 0-dB normalisation
+    all_rms = [rms for mode_data in responses.values() for _, rms in mode_data]
+    max_rms = max(all_rms) if all_rms else 1.0
+
+    # ── CSV ──────────────────────────────────────────────────────────────
+    csv_path = os.path.join(TB_OUTPUT_DIR, filename.rsplit(".", 1)[0] + ".csv")
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        header = ["freq_hz"]
+        for mode_name in responses:
+            header.extend([f"{mode_name}_rms", f"{mode_name}_dB"])
+        writer.writerow(header)
+
+        first_mode = list(responses.values())[0]
+        for i in range(len(first_mode)):
+            row = [f"{first_mode[i][0]:.1f}"]
+            for mode_name, mode_data in responses.items():
+                _, rms = mode_data[i]
+                db = 20 * np.log10(rms / max_rms) if rms > 0 else -100
+                row.extend([f"{rms:.2f}", f"{db:.2f}"])
+            writer.writerow(row)
+
+    # ── Plot ─────────────────────────────────────────────────────────────
+    colors = {"LP": "blue", "HP": "red", "BP": "green", "BR": "purple"}
+
+    plot_path = os.path.join(TB_OUTPUT_DIR, filename)
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for mode_name, mode_data in responses.items():
+        freqs = [f for f, _ in mode_data]
+        db_vals = [20 * np.log10(r / max_rms) if r > 0 else -100
+                   for _, r in mode_data]
+        color = colors.get(mode_name, "black")
+        ax.plot(freqs, db_vals, "o-", color=color, linewidth=2,
+                markersize=5, label=mode_name)
+
+    ax.axvline(x=fc_hz, color="grey", linestyle="--", linewidth=1.5,
+               alpha=0.7, label=f"fc = {fc_hz:.0f} Hz")
+
+    ax.set_xscale("log")
+    ax.set_xlabel("Frequency (Hz)")
+    ax.set_ylabel("Magnitude (dB)")
+    ax.set_title(f"SVF Frequency Response — fc = {fc_hz:.0f} Hz, Q = {q:.2f}")
+    ax.set_ylim(-60, 6)
+    ax.grid(True, which="both", alpha=0.3)
+    ax.legend(loc="lower left")
+    fig.tight_layout()
+    fig.savefig(plot_path, dpi=150)
+    plt.close(fig)
