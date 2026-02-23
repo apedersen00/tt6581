@@ -45,7 +45,7 @@ module spi (
   logic [2:0] mosi_sync;
 
   // Re-time SPI signals to system clock
-  always @(posedge clk_i or negedge rst_ni) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       sclk_sync <= '0;
       cs_sync   <= '0;
@@ -75,7 +75,7 @@ module spi (
 
   logic is_write_cmd; // 1 = Write, 0 = Read
 
-  always @(posedge clk_i or negedge rst_ni) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       bit_cnt       <= '0;
       shift_reg     <= '0;

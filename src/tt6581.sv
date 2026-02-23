@@ -258,7 +258,7 @@ module tt6581 (
   assign svf_bypass_sum = svf_out + bypass_accum;
 
   // Multiplier input MUX
-  always @(*) begin
+  always_comb begin
     mult_a_in = '0;
     mult_b_in = '0;
 
@@ -293,7 +293,7 @@ module tt6581 (
   logic signed [13:0] mult_out;
   assign mult_out = mult_product[21:8];
 
-  always @(posedge clk_i or negedge rst_ni) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       filter_accum <= '0;
       bypass_accum <= '0;

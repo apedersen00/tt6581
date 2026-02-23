@@ -62,18 +62,15 @@ module multi_voice (
 
   state_e cur_state, nxt_state;
 
-  always @(posedge clk_i or negedge rst_ni) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni)  cur_state <= STATE_READY;
     else          cur_state <= nxt_state;
   end
 
-  always @(*) begin
+  always_comb begin
     nxt_state = STATE_READY;
     unique case (cur_state)
-      STATE_READY: begin
-        if (start_i) nxt_state = STATE_BUSY;
-        else         nxt_state = STATE_READY;
-      end
+      STATE_READY:  nxt_state = start_i ? STATE_BUSY  : STATE_READY;
       STATE_BUSY:   nxt_state = STATE_WRITE;
       STATE_WRITE:  nxt_state = STATE_READY;
       default     : ;
@@ -83,7 +80,7 @@ module multi_voice (
   /************************************
    * Reset and writeback
    ***********************************/
-  always @(posedge clk_i or negedge rst_ni) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       ready_o <= 1'b0;
 
@@ -114,7 +111,7 @@ module multi_voice (
   // TODO: Fix this. Instead of scaling freq_word, fix the calculation and bits required
   // due to now only updating it 50 kHz (on sample_tick)
   logic [1:0] prev_voice;
-  always @(*) begin
+  always_comb begin
     unique case (act_voice_i)
       2'd0:    prev_voice = 2'd2;
       2'd1:    prev_voice = 2'd0;
@@ -126,7 +123,7 @@ module multi_voice (
   logic prev_voice_rising_edge;
   assign prev_voice_rising_edge = (phase_last_msb[prev_voice] == 2'b01);
 
-  always @(*) begin
+  always_comb begin
     nxt_phase = cur_phase + {3'd0, freq_word_i};
     if (sync_i && prev_voice_rising_edge) begin
       nxt_phase = '0;
@@ -143,7 +140,7 @@ module multi_voice (
 
   assign noise_en = (cur_phase[9] == 1'b0 && nxt_phase[9] == 1'b1);
 
-  always @(*) begin
+  always_comb begin
     nxt_lfsr = cur_lfsr;
     if (noise_en) nxt_lfsr = {cur_lfsr[21:0], cur_lfsr[22] ^ cur_lfsr[17]};
   end
@@ -159,7 +156,7 @@ module multi_voice (
   /************************************
    * MUX output
    ***********************************/
-  always @(*) begin
+  always_comb begin
     unique case (wave_sel_i)
       4'b0001: wave_o = wave_tri;
       4'b0010: wave_o = wave_saw;

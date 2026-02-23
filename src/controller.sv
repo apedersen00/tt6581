@@ -137,12 +137,12 @@ module controller (
 
   state_e cur_state, nxt_state;
 
-  always @(posedge clk_i or negedge rst_ni) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni)  cur_state <= STATE_IDLE;
     else          cur_state <= nxt_state;
   end
 
-  always @(*) begin
+  always_comb begin
     nxt_state = cur_state;
     unique case (cur_state)
       STATE_IDLE:       if (sample_tick_i)      nxt_state = STATE_SYN;
@@ -164,7 +164,7 @@ module controller (
   /************************************
    * Voice counter
    ***********************************/
-  always @(posedge clk_i or negedge rst_ni) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       cur_voice <= '0;
     end else begin
@@ -176,7 +176,7 @@ module controller (
   /************************************
    * Output signals
    ***********************************/
-  always @(posedge clk_i or negedge rst_ni) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       voice_start_o   <= '0;
       env_start_o     <= '0;

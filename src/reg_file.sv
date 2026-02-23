@@ -28,84 +28,54 @@
 */
 
 module reg_file (
-  input  logic        clk_i,
-  input  logic        rst_ni,
-  input  logic [6:0]  addr_i,
-  input  logic [7:0]  wdata_i,
-  input  logic        we_i,
-  output logic [7:0]  rdata_o,
+    input  logic        clk_i,
+    input  logic        rst_ni,
+    input  logic [6:0]  addr_i,
+    input  logic [7:0]  wdata_i,
+    input  logic        we_i,
+    output logic [7:0]  rdata_o,
 
-  // Group: VOICE (Array x3)
-  output logic [23:0] voice_freq_lo_o,
-  output logic [23:0] voice_freq_hi_o,
-  output logic [23:0] voice_pw_lo_o,
-  output logic [23:0] voice_pw_hi_o,
-  output logic [23:0] voice_control_o,
-  output logic [23:0] voice_ad_o,
-  output logic [23:0] voice_sr_o,
+    // Group: VOICE (Array x3)
+    output logic [23:0] voice_freq_lo_o,
+    output logic [23:0] voice_freq_hi_o,
+    output logic [23:0] voice_pw_lo_o,
+    output logic [23:0] voice_pw_hi_o,
+    output logic [23:0] voice_control_o,
+    output logic [23:0] voice_ad_o,
+    output logic [23:0] voice_sr_o,
 
-  // Group: FILTER (Single)
-  output logic [7:0] filter_f_lo_o,
-  output logic [7:0] filter_f_hi_o,
-  output logic [7:0] filter_q_lo_o,
-  output logic [7:0] filter_q_hi_o,
-  output logic [7:0] filter_en_mode_o,
-  output logic [7:0] filter_volume_o
+    // Group: FILTER (Single)
+    output logic [7:0] filter_f_lo_o,
+    output logic [7:0] filter_f_hi_o,
+    output logic [7:0] filter_q_lo_o,
+    output logic [7:0] filter_q_hi_o,
+    output logic [7:0] filter_en_mode_o,
+    output logic [7:0] filter_volume_o
 );
 
-  logic [7:0] voice_1_freq_lo;
-  logic [7:0] voice_1_freq_hi;
-  logic [7:0] voice_1_pw_lo;
-  logic [7:0] voice_1_pw_hi;
-  logic [7:0] voice_1_control;
-  logic [7:0] voice_1_ad;
-  logic [7:0] voice_1_sr;
-  logic [7:0] voice_2_freq_lo;
-  logic [7:0] voice_2_freq_hi;
-  logic [7:0] voice_2_pw_lo;
-  logic [7:0] voice_2_pw_hi;
-  logic [7:0] voice_2_control;
-  logic [7:0] voice_2_ad;
-  logic [7:0] voice_2_sr;
-  logic [7:0] voice_3_freq_lo;
-  logic [7:0] voice_3_freq_hi;
-  logic [7:0] voice_3_pw_lo;
-  logic [7:0] voice_3_pw_hi;
-  logic [7:0] voice_3_control;
-  logic [7:0] voice_3_ad;
-  logic [7:0] voice_3_sr;
-
-  assign voice_freq_lo_o  = {voice_3_freq_lo, voice_2_freq_lo , voice_1_freq_lo };
-  assign voice_freq_hi_o  = {voice_3_freq_hi, voice_2_freq_hi , voice_1_freq_hi };
-  assign voice_pw_lo_o    = {voice_3_pw_lo  , voice_2_pw_lo   , voice_1_pw_lo   };
-  assign voice_pw_hi_o    = {voice_3_pw_hi  , voice_2_pw_hi   , voice_1_pw_hi   };
-  assign voice_control_o  = {voice_3_control, voice_2_control , voice_1_control };
-  assign voice_ad_o       = {voice_3_ad     , voice_2_ad      , voice_1_ad      };
-  assign voice_sr_o       = {voice_3_sr     , voice_2_sr      , voice_1_sr      };
-
-    always @(posedge clk_i or negedge rst_ni) begin
+    always_ff @(posedge clk_i or negedge rst_ni) begin
         if (!rst_ni) begin
-            voice_1_freq_lo[7:0] <= 8'h00;
-            voice_1_freq_hi[7:0] <= 8'h00;
-            voice_1_pw_lo[7:0] <= 8'h00;
-            voice_1_pw_hi[7:0] <= 8'h00;
-            voice_1_control[7:0] <= 8'h00;
-            voice_1_ad[7:0] <= 8'h00;
-            voice_1_sr[7:0] <= 8'h00;
-            voice_2_freq_lo[7:0] <= 8'h00;
-            voice_2_freq_hi[7:0] <= 8'h00;
-            voice_2_pw_lo[7:0] <= 8'h00;
-            voice_2_pw_hi[7:0] <= 8'h00;
-            voice_2_control[7:0] <= 8'h00;
-            voice_2_ad[7:0] <= 8'h00;
-            voice_2_sr[7:0] <= 8'h00;
-            voice_3_freq_lo[7:0] <= 8'h00;
-            voice_3_freq_hi[7:0] <= 8'h00;
-            voice_3_pw_lo[7:0] <= 8'h00;
-            voice_3_pw_hi[7:0] <= 8'h00;
-            voice_3_control[7:0] <= 8'h00;
-            voice_3_ad[7:0] <= 8'h00;
-            voice_3_sr[7:0] <= 8'h00;
+            voice_freq_lo_o[7:0] <= 8'h00;
+            voice_freq_hi_o[7:0] <= 8'h00;
+            voice_pw_lo_o[7:0] <= 8'h00;
+            voice_pw_hi_o[7:0] <= 8'h00;
+            voice_control_o[7:0] <= 8'h00;
+            voice_ad_o[7:0] <= 8'h00;
+            voice_sr_o[7:0] <= 8'h00;
+            voice_freq_lo_o[15:8] <= 8'h00;
+            voice_freq_hi_o[15:8] <= 8'h00;
+            voice_pw_lo_o[15:8] <= 8'h00;
+            voice_pw_hi_o[15:8] <= 8'h00;
+            voice_control_o[15:8] <= 8'h00;
+            voice_ad_o[15:8] <= 8'h00;
+            voice_sr_o[15:8] <= 8'h00;
+            voice_freq_lo_o[23:16] <= 8'h00;
+            voice_freq_hi_o[23:16] <= 8'h00;
+            voice_pw_lo_o[23:16] <= 8'h00;
+            voice_pw_hi_o[23:16] <= 8'h00;
+            voice_control_o[23:16] <= 8'h00;
+            voice_ad_o[23:16] <= 8'h00;
+            voice_sr_o[23:16] <= 8'h00;
             filter_f_lo_o <= 8'h00;
             filter_f_hi_o <= 8'h00;
             filter_q_lo_o <= 8'h00;
@@ -114,27 +84,27 @@ module reg_file (
             filter_volume_o <= 8'h00;
         end else if (we_i) begin
             case (addr_i)
-                7'h00: voice_1_freq_lo[7:0] <= wdata_i;
-                7'h01: voice_1_freq_hi[7:0] <= wdata_i;
-                7'h02: voice_1_pw_lo[7:0] <= wdata_i;
-                7'h03: voice_1_pw_hi[7:0] <= wdata_i;
-                7'h04: voice_1_control[7:0] <= wdata_i;
-                7'h05: voice_1_ad[7:0] <= wdata_i;
-                7'h06: voice_1_sr[7:0] <= wdata_i;
-                7'h07: voice_2_freq_lo[7:0] <= wdata_i;
-                7'h08: voice_2_freq_hi[7:0] <= wdata_i;
-                7'h09: voice_2_pw_lo[7:0] <= wdata_i;
-                7'h0A: voice_2_pw_hi[7:0] <= wdata_i;
-                7'h0B: voice_2_control[7:0] <= wdata_i;
-                7'h0C: voice_2_ad[7:0] <= wdata_i;
-                7'h0D: voice_2_sr[7:0] <= wdata_i;
-                7'h0E: voice_3_freq_lo[7:0] <= wdata_i;
-                7'h0F: voice_3_freq_hi[7:0] <= wdata_i;
-                7'h10: voice_3_pw_lo[7:0] <= wdata_i;
-                7'h11: voice_3_pw_hi[7:0] <= wdata_i;
-                7'h12: voice_3_control[7:0] <= wdata_i;
-                7'h13: voice_3_ad[7:0] <= wdata_i;
-                7'h14: voice_3_sr[7:0] <= wdata_i;
+                7'h00: voice_freq_lo_o[7:0] <= wdata_i;
+                7'h01: voice_freq_hi_o[7:0] <= wdata_i;
+                7'h02: voice_pw_lo_o[7:0] <= wdata_i;
+                7'h03: voice_pw_hi_o[7:0] <= wdata_i;
+                7'h04: voice_control_o[7:0] <= wdata_i;
+                7'h05: voice_ad_o[7:0] <= wdata_i;
+                7'h06: voice_sr_o[7:0] <= wdata_i;
+                7'h07: voice_freq_lo_o[15:8] <= wdata_i;
+                7'h08: voice_freq_hi_o[15:8] <= wdata_i;
+                7'h09: voice_pw_lo_o[15:8] <= wdata_i;
+                7'h0A: voice_pw_hi_o[15:8] <= wdata_i;
+                7'h0B: voice_control_o[15:8] <= wdata_i;
+                7'h0C: voice_ad_o[15:8] <= wdata_i;
+                7'h0D: voice_sr_o[15:8] <= wdata_i;
+                7'h0E: voice_freq_lo_o[23:16] <= wdata_i;
+                7'h0F: voice_freq_hi_o[23:16] <= wdata_i;
+                7'h10: voice_pw_lo_o[23:16] <= wdata_i;
+                7'h11: voice_pw_hi_o[23:16] <= wdata_i;
+                7'h12: voice_control_o[23:16] <= wdata_i;
+                7'h13: voice_ad_o[23:16] <= wdata_i;
+                7'h14: voice_sr_o[23:16] <= wdata_i;
                 7'h15: filter_f_lo_o <= wdata_i;
                 7'h16: filter_f_hi_o <= wdata_i;
                 7'h17: filter_q_lo_o <= wdata_i;
@@ -146,29 +116,29 @@ module reg_file (
         end
     end
 
-    always @(*) begin
+    always_comb begin
         case (addr_i)
-            7'h00: rdata_o = voice_1_freq_lo[7:0];
-            7'h01: rdata_o = voice_1_freq_hi[7:0];
-            7'h02: rdata_o = voice_1_pw_lo[7:0];
-            7'h03: rdata_o = voice_1_pw_hi[7:0];
-            7'h04: rdata_o = voice_1_control[7:0];
-            7'h05: rdata_o = voice_1_ad[7:0];
-            7'h06: rdata_o = voice_1_sr[7:0];
-            7'h07: rdata_o = voice_2_freq_lo[7:0];
-            7'h08: rdata_o = voice_2_freq_hi[7:0];
-            7'h09: rdata_o = voice_2_pw_lo[7:0];
-            7'h0A: rdata_o = voice_2_pw_hi[7:0];
-            7'h0B: rdata_o = voice_2_control[7:0];
-            7'h0C: rdata_o = voice_2_ad[7:0];
-            7'h0D: rdata_o = voice_2_sr[7:0];
-            7'h0E: rdata_o = voice_3_freq_lo[7:0];
-            7'h0F: rdata_o = voice_3_freq_hi[7:0];
-            7'h10: rdata_o = voice_3_pw_lo[7:0];
-            7'h11: rdata_o = voice_3_pw_hi[7:0];
-            7'h12: rdata_o = voice_3_control[7:0];
-            7'h13: rdata_o = voice_3_ad[7:0];
-            7'h14: rdata_o = voice_3_sr[7:0];
+            7'h00: rdata_o = voice_freq_lo_o[7:0];
+            7'h01: rdata_o = voice_freq_hi_o[7:0];
+            7'h02: rdata_o = voice_pw_lo_o[7:0];
+            7'h03: rdata_o = voice_pw_hi_o[7:0];
+            7'h04: rdata_o = voice_control_o[7:0];
+            7'h05: rdata_o = voice_ad_o[7:0];
+            7'h06: rdata_o = voice_sr_o[7:0];
+            7'h07: rdata_o = voice_freq_lo_o[15:8];
+            7'h08: rdata_o = voice_freq_hi_o[15:8];
+            7'h09: rdata_o = voice_pw_lo_o[15:8];
+            7'h0A: rdata_o = voice_pw_hi_o[15:8];
+            7'h0B: rdata_o = voice_control_o[15:8];
+            7'h0C: rdata_o = voice_ad_o[15:8];
+            7'h0D: rdata_o = voice_sr_o[15:8];
+            7'h0E: rdata_o = voice_freq_lo_o[23:16];
+            7'h0F: rdata_o = voice_freq_hi_o[23:16];
+            7'h10: rdata_o = voice_pw_lo_o[23:16];
+            7'h11: rdata_o = voice_pw_hi_o[23:16];
+            7'h12: rdata_o = voice_control_o[23:16];
+            7'h13: rdata_o = voice_ad_o[23:16];
+            7'h14: rdata_o = voice_sr_o[23:16];
             7'h15: rdata_o = filter_f_lo_o;
             7'h16: rdata_o = filter_f_hi_o;
             7'h17: rdata_o = filter_q_lo_o;
