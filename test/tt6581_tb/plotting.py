@@ -196,18 +196,8 @@ def plot_frequencies(samples: list[int],
     # -- FFT subplot --
     ax_fft.plot(freqs, fft_mag, linewidth=2.0, color='black', label='FFT magnitude')
 
-    # Mark detected peaks — labels at a fixed y position
-    label_y = 105  # fixed height for all labels
     for rank, idx in enumerate(peak_indices):
         ax_fft.plot(freqs[idx], fft_mag[idx], 'o', color='red', markersize=8)
-        ax_fft.annotate(
-            f'{freqs[idx]:.1f} Hz',
-            xy=(freqs[idx], fft_mag[idx]),
-            xytext=(freqs[idx], label_y + rank * 8),
-            textcoords='data',
-            arrowprops=dict(arrowstyle='->', color='red', lw=1.0),
-            color='red', fontsize=9, fontweight='bold', ha='center',
-        )
 
     # Summary text box
     lines = []
@@ -219,8 +209,8 @@ def plot_frequencies(samples: list[int],
         err = abs(det - exp) if exp is not None else float('nan')
         lines.append(f'Peak {j+1}: {det:.1f} Hz  (exp {exp:.1f}, err {err:.1f})')
     if lines:
-        props = dict(boxstyle='round', facecolor='wheat', alpha=0.7)
-        ax_fft.text(0.98, 0.75, '\n'.join(lines),
+        props = dict(boxstyle='round', facecolor='wheat', alpha=1.0)
+        ax_fft.text(0.98, 0.25, '\n'.join(lines),
                     transform=ax_fft.transAxes, fontsize=9,
                     verticalalignment='top', horizontalalignment='right',
                     bbox=props)
