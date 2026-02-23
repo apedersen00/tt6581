@@ -111,19 +111,15 @@ module envelope (
   /************************************
    * Voice envelope state machine
    ***********************************/
-  typedef enum logic [1:0] {
-    STATE_ATTACK,
-    STATE_DECAY,
-    STATE_SUSTAIN,
-    STATE_RELEASE
-  } voice_state_e;
+  localparam logic [1:0] STATE_ATTACK  = 2'd0;
+  localparam logic [1:0] STATE_DECAY   = 2'd1;
+  localparam logic [1:0] STATE_SUSTAIN = 2'd2;
+  localparam logic [1:0] STATE_RELEASE = 2'd3;
 
-  voice_state_e voice_states [2:0];
-  voice_state_e cur_voice_state, nxt_voice_state;
+  logic [1:0] voice_states [2:0];
+  logic [1:0] cur_voice_state, nxt_voice_state;
 
-  logic [1:0] cur_voice_state_bits;
-  always @(*) cur_voice_state_bits = voice_states[voice_idx_i];
-  assign cur_voice_state = voice_state_e'(cur_voice_state_bits);
+  assign cur_voice_state = voice_states[voice_idx_i];
 
   always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
