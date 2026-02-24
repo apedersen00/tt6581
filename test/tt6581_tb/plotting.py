@@ -251,24 +251,6 @@ def plot_filter_response(responses: dict[str, list[tuple[float, float]]],
     all_rms = [rms for mode_data in responses.values() for _, rms in mode_data]
     max_rms = max(all_rms) if all_rms else 1.0
 
-    # ── CSV ──────────────────────────────────────────────────────────────
-    csv_path = os.path.join(TB_OUTPUT_DIR, filename.rsplit(".", 1)[0] + ".csv")
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        header = ["freq_hz"]
-        for mode_name in responses:
-            header.extend([f"{mode_name}_rms", f"{mode_name}_dB"])
-        writer.writerow(header)
-
-        first_mode = list(responses.values())[0]
-        for i in range(len(first_mode)):
-            row = [f"{first_mode[i][0]:.1f}"]
-            for mode_name, mode_data in responses.items():
-                _, rms = mode_data[i]
-                db = 20 * np.log10(rms / max_rms) if rms > 0 else -100
-                row.extend([f"{rms:.2f}", f"{db:.2f}"])
-            writer.writerow(row)
-
     # ── Plot ─────────────────────────────────────────────────────────────
     colors = {"LP": "blue", "HP": "red", "BP": "green", "BR": "purple"}
 

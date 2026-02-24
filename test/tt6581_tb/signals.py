@@ -62,9 +62,19 @@ async def capture_audio(dut, num_samples: int = 500,
     num_pdm    = num_samples * decimation
     pdm_bits   = np.empty(num_pdm, dtype=np.float32)
 
+    x_count = 0
     for i in range(num_pdm):
         await ClockCycles(dut.clk, PDM_CLK_DIV)
-        pdm_bits[i] = float((int(dut.uo_out.value) >> 1) & 1)
+        try:
+            val = dut.uo_out.value
+            pdm_bits[i] = 1.0 if val.binstr[-2] == '1' else 0.0
+            if i < 20:
+                dut._log.info(f"[PDM DBG] cycle {i}: uo_out={val.binstr} bit1={val.binstr[-2]}")
+        except Exception as e:
+            if x_count < 5:
+                dut._log.warning(f"[PDM DBG] cycle {i}: exception reading uo_out: {e}")
+            x_count += 1
+            pdm_bits[i] = 0.0
 
         if log_every and (i + 1) % (log_every * decimation) == 0:
             n = (i + 1) // decimation
