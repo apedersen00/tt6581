@@ -2,7 +2,9 @@
 
 # Tiny Tapeout Verilog Project Template
 
-- [Read the documentation for project](docs/info.md)
+## Notes
+
+The stable version of icarus verilog (iverilog) _CAN NOT_ simulate the gate level netlist. Build and install from source.
 
 ## What is Tiny Tapeout?
 
