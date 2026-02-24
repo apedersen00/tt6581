@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 
 from .constants import TB_OUTPUT_DIR, SAMPLE_RATE
 
-def plot_envelope(samples: list[int], att, dec, sus, rel, gate_samps, filename: str = "audio_i_plot.png",
-                       title: str = "delta_sigma.audio_i",
+def plot_envelope(samples, att, dec, sus, rel, gate_samps, filename: str = "audio_i_plot.png",
+                       title: str = "Envelope",
                        sample_rate: int = SAMPLE_RATE):
     att_lut = [2, 8, 16, 24, 38, 56, 68, 80, 100, 250, 500, 800, 1000, 3000, 5000, 8000]
     dec_lut = [6, 24, 48, 72, 114, 168, 204, 240, 300, 750, 1500, 2400, 3000, 9000, 15000, 24000]
@@ -29,7 +29,6 @@ def plot_envelope(samples: list[int], att, dec, sus, rel, gate_samps, filename: 
 
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.plot(t_ms, samples, color='blue', linewidth=2, alpha=0.7)
-    ax.set_ylim(-1024, 1023)
     ax.set_xlim(0, max(t_ms))
 
     peak = max(samples)
@@ -73,17 +72,17 @@ def plot_envelope(samples: list[int], att, dec, sus, rel, gate_samps, filename: 
             fontfamily='monospace')
 
     ax.set_xlabel("Time (ms)")
-    ax.set_ylabel("audio_i  (signed 14-bit)")
+    ax.set_ylabel("Amplitude")
     ax.set_title(title)
     ax.legend(loc='upper left')
     fig.tight_layout()
     plot_path = os.path.join(TB_OUTPUT_DIR, filename)
     fig.savefig(plot_path, dpi=150)
 
-def plot_audio_samples(samples: list[int], filename: str = "audio_i_plot.png",
-                       title: str = "delta_sigma.audio_i",
+def plot_audio_samples(samples, filename: str = "audio_i_plot.png",
+                       title: str = "PDM Reconstructed Audio",
                        sample_rate: int = SAMPLE_RATE):
-    """Save a time-domain plot of captured 14-bit signed audio samples as PNG.
+    """Save a time-domain plot of captured audio samples as PNG.
 
     X-axis is time in milliseconds.  Also writes a CSV.
     """
@@ -95,18 +94,17 @@ def plot_audio_samples(samples: list[int], filename: str = "audio_i_plot.png",
     csv_path = os.path.join(TB_OUTPUT_DIR, filename.rsplit(".", 1)[0] + ".csv")
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["time_ms", "audio_i"])
+        writer.writerow(["time_ms", "amplitude"])
         for t, v in zip(t_ms, samples):
-            writer.writerow([f"{t:.6f}", v])
+            writer.writerow([f"{t:.6f}", f"{v:.6f}"])
 
     # Plot
     plot_path = os.path.join(TB_OUTPUT_DIR, filename)
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.plot(t_ms, samples, linewidth=2.0, color='black')
     ax.set_xlabel("Time (ms)")
-    ax.set_ylabel("audio_i  (signed 14-bit)")
+    ax.set_ylabel("Amplitude")
     ax.set_title(title)
-    ax.set_ylim(-1024, 1023)
     ax.axhline(0, color="grey", linewidth=0.3)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -114,7 +112,7 @@ def plot_audio_samples(samples: list[int], filename: str = "audio_i_plot.png",
     plt.close(fig)
 
 
-def plot_frequencies(samples: list[int],
+def plot_frequencies(samples,
                      expected_freqs: list[float],
                      filename: str = "freq_plot.png",
                      title: str = "Frequency analysis",
@@ -123,8 +121,8 @@ def plot_frequencies(samples: list[int],
 
     Parameters
     ----------
-    samples : list[int]
-        Signed 14-bit audio samples.
+    samples : list[float]
+        Reconstructed audio samples.
     expected_freqs : list[float]
         The three expected fundamental frequencies (Hz).
     filename : str
@@ -147,9 +145,9 @@ def plot_frequencies(samples: list[int],
     csv_path = os.path.join(TB_OUTPUT_DIR, filename.rsplit(".", 1)[0] + ".csv")
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["time_ms", "audio_i"])
+        writer.writerow(["time_ms", "amplitude"])
         for t, v in zip(t_ms, samples):
-            writer.writerow([f"{t:.6f}", v])
+            writer.writerow([f"{t:.6f}", f"{v:.6f}"])
 
     # FFT
     sig = np.array(samples, dtype=float)
@@ -188,8 +186,7 @@ def plot_frequencies(samples: list[int],
     # -- Time-domain subplot --
     ax_time.plot(t_ms, samples, linewidth=1.2, color='black')
     ax_time.set_xlabel("Time (ms)")
-    ax_time.set_ylabel("audio_i  (signed 14-bit)")
-    ax_time.set_ylim(-2048, 2047)
+    ax_time.set_ylabel("Amplitude")
     ax_time.axhline(0, color="grey", linewidth=0.3)
     ax_time.grid(True, alpha=0.3)
 
@@ -218,7 +215,6 @@ def plot_frequencies(samples: list[int],
     ax_fft.set_xlabel("Frequency (Hz)")
     ax_fft.set_ylabel("Magnitude")
     ax_fft.set_xlim(0, max(expected_freqs) * 1.3)
-    ax_fft.set_ylim(0, 140)
     ax_fft.grid(True, alpha=0.3)
 
     fig.tight_layout()

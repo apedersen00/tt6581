@@ -24,6 +24,12 @@ SPI_FREQ_NS = 200          # Half-period of SPI clock (well below 50 MHz sys clk
 SYS_CLK_HZ  = 50_000_000
 SAMPLE_RATE  = 50_000      # Internal sample rate driven by tick_gen
 
+# Delta-sigma PDM reconstruction parameters
+PDM_CLK_DIV = 5                            # DS module divides sys clk by 5
+PDM_RATE    = SYS_CLK_HZ // PDM_CLK_DIV   # 10 MHz effective PDM rate
+FILT_ORDER  = 4                            # Butterworth filter order
+FILT_CUTOFF = 20_000                       # Low-pass cutoff (Hz)
+
 # =============================================================================
 #  Per-voice register offsets (relative to voice base)
 # =============================================================================

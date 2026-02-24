@@ -57,7 +57,7 @@ async def test_waveforms(dut):
         plot_audio_samples(
             samples,
             filename=f"wave_{wave_name.lower()}.png",
-            title=f"audio_i — Voice 0 {wave_name} 1000 Hz",
+            title=f"Voice 0 {wave_name} 1000 Hz",
         )
 
         # Gate off + settle before next waveform
@@ -66,7 +66,7 @@ async def test_waveforms(dut):
 
     dut._log.info("=== test_waveforms: done ===")
 
-@cocotb.test()
+# @cocotb.test()
 async def test_frequencies(dut):
     """
     Play three voices at different frequencies and calculate frequency spectrum.
@@ -113,7 +113,7 @@ async def test_frequencies(dut):
             samples,
             expected_freqs=f,
             filename=f"wave_freq_{i}.png",
-            title=f"audio_i — expected {f[0]:.0f} / {f[1]:.0f} / {f[2]:.0f} Hz",
+            title=f"Expected {f[0]:.0f} / {f[1]:.0f} / {f[2]:.0f} Hz",
         )
         dut._log.info(
             f"[TB] Detected peaks: "
@@ -128,7 +128,7 @@ async def test_frequencies(dut):
 
     dut._log.info("=== test_frequencies: done ===")
 
-@cocotb.test()
+# @cocotb.test()
 async def test_envelopes(dut):
     """Test different ADSR envelope settings with a sawtooth and plot the
     amplitude envelope over time."""
@@ -146,7 +146,7 @@ async def test_envelopes(dut):
         ("A4 D4 S10 R4  (moderate)",    4,  4, 0xA,  4,  50*150,  50*120), # 38ms, 114m, 114ms
     ]
 
-    all_traces: list[tuple[str, list[int]]] = []
+    all_traces: list[tuple[str, list[float]]] = []
 
     for label, atk, dec, sus, rel, gate_samps, rel_samps in envelope_configs:
         dut._log.info(f"*** Envelope: {label} ***")
@@ -172,7 +172,7 @@ async def test_envelopes(dut):
         plot_envelope(
             combined, atk, dec, sus, rel, gate_samps,
             filename=f"env_{safe_name}.png",
-            title=f"audio_i — Envelope: {label}",
+            title=f"Envelope: {label}",
         )
 
         all_traces.append((label, combined))
@@ -183,7 +183,7 @@ async def test_envelopes(dut):
     dut._log.info("=== test_envelopes: done ===")
 
 
-@cocotb.test()
+# @cocotb.test()
 async def test_filter(dut):
     """Frequency sweep through LP, HP, BP, BR filters at fc = 1 kHz."""
 

@@ -1,53 +1,19 @@
 # SPDX-FileCopyrightText: © 2024 Tiny Tapeout
 # SPDX-License-Identifier: Apache-2.0
 
-"""RTL signal accessors, reset helper, and reusable audio capture routine."""
+"""PDM audio capture and reset helper.
 
-from cocotb.triggers import ClockCycles, RisingEdge
+All signal reads use top-level ports (``uo_out``, ``ui_in``, etc.) so the
+testbench runs identically on RTL and gate-level netlists.
+"""
 
+import numpy as np
+from scipy.signal import butter, sosfilt
+from cocotb.triggers import ClockCycles
 
-# =============================================================================
-#  Signal accessors — read internal RTL signals
-# =============================================================================
-
-def _sid(dut):
-    """Shortcut to the tt6581 instance inside the TT wrapper."""
-    return dut.tt6581.tt6581_inst
-
-
-def get_audio_pre_ds(dut) -> int:
-    """Return the signed 14-bit value feeding the delta-sigma modulator (mult_out)."""
-    return _sid(dut).mult_out.value.to_signed()
-
-
-def get_bypass_accum(dut) -> int:
-    """Return the signed 14-bit bypass (unfiltered) accumulator."""
-    return _sid(dut).bypass_accum.value.to_signed()
-
-
-def get_filter_accum(dut) -> int:
-    """Return the signed 14-bit filter accumulator."""
-    return _sid(dut).filter_accum.value.to_signed()
-
-
-def get_audio_valid(dut) -> bool:
-    """Return True when audio_valid is asserted (new sample ready)."""
-    return bool(_sid(dut).audio_valid.value)
-
-
-def get_ds_audio_i(dut) -> int:
-    """Return the signed 14-bit audio_i inside the delta-sigma module."""
-    return _sid(dut).delta_sigma_inst.audio_i.value.to_signed()
-
-
-def get_ds_audio_valid(dut) -> bool:
-    """Return the audio_valid_i flag inside the delta-sigma module."""
-    return bool(_sid(dut).delta_sigma_inst.audio_valid_i.value)
-
-
-def get_wave_o(dut) -> int:
-    """Return the 1-bit PDM output."""
-    return int(_sid(dut).delta_sigma_inst.wave_o.value)
+from .constants import (
+    PDM_CLK_DIV, PDM_RATE, FILT_ORDER, FILT_CUTOFF, SAMPLE_RATE,
+)
 
 
 # =============================================================================
@@ -66,36 +32,52 @@ async def reset_dut(dut, cycles: int = 10):
 
 
 # =============================================================================
-#  Reusable capture routine
+#  PDM audio capture with Butterworth reconstruction
 # =============================================================================
 
 async def capture_audio(dut, num_samples: int = 500,
-                        max_clocks: int = 0,
-                        log_every: int = 100) -> list[int]:
+                        log_every: int = 100) -> list[float]:
     """
-    Capture N samples of delta-sigma audio_i (on audio_valid_i pulses).
+    Capture audio by sampling the 1-bit PDM output on ``uo_out[1]`` and
+    reconstructing the analog waveform with a Butterworth low-pass filter.
 
-    Returns a list of signed 14-bit integers.
+    This mirrors the real-world reconstruction path (analog RC / active
+    filter on the PCB recovering audio from the delta-sigma bitstream).
+
+    Parameters
+    ----------
+    dut
+        Cocotb DUT handle.
+    num_samples : int
+        Number of *audio-rate* samples to return (at ``SAMPLE_RATE``).
+    log_every : int
+        Log progress every *log_every* audio-rate samples (0 to disable).
+
+    Returns
+    -------
+    list[float]
+        Reconstructed audio samples (roughly +/-1.0 full-scale).
     """
-    audio_samples: list[int] = []
+    decimation = PDM_RATE // SAMPLE_RATE          # 200
+    num_pdm    = num_samples * decimation
+    pdm_bits   = np.empty(num_pdm, dtype=np.float32)
 
-    # If no max set, run for a very long time
-    if max_clocks == 0:
-        max_clocks = int(1e9)
+    for i in range(num_pdm):
+        await ClockCycles(dut.clk, PDM_CLK_DIV)
+        pdm_bits[i] = float((int(dut.uo_out.value) >> 1) & 1)
 
-    for _ in range(max_clocks):
-        await RisingEdge(dut.clk)
+        if log_every and (i + 1) % (log_every * decimation) == 0:
+            n = (i + 1) // decimation
+            dut._log.info(f"[PDM] {n}/{num_samples} audio samples captured")
 
-        if get_ds_audio_valid(dut):
-            audio_val = get_ds_audio_i(dut)
-            audio_samples.append(audio_val)
+    # {0, 1} -> {-1, +1}
+    pdm_bits = pdm_bits * 2.0 - 1.0
 
-            if log_every and len(audio_samples) % log_every == 0:
-                dut._log.info(
-                    f"[sample {len(audio_samples):4d}] "
-                    f"audio_i = {audio_val:6d}"
-                )
-            if len(audio_samples) >= num_samples:
-                break
+    # Butterworth low-pass filter (SOS form for numerical stability)
+    sos = butter(FILT_ORDER, FILT_CUTOFF, btype='low', fs=PDM_RATE, output='sos')
+    filtered = sosfilt(sos, pdm_bits)
 
-    return audio_samples
+    # Downsample: PDM_RATE -> SAMPLE_RATE
+    audio = filtered[::decimation]
+
+    return audio.tolist()
