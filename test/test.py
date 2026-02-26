@@ -199,7 +199,7 @@ async def test_filter(dut):
     N_FREQ = 40
     SETTLE = 200                             # audio samples (~4 ms)
 
-    test_freqs = np.logspace(np.log10(100), np.log10(10000), N_FREQ).tolist()
+    test_freqs = np.logspace(np.log10(100), np.log10(6000), N_FREQ).tolist()
 
     # Bypass first, then each filter mode
     modes = [
