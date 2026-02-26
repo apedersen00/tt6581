@@ -12,7 +12,7 @@ from cocotb.triggers import ClockCycles
 from tt6581_tb import (
     # constants
     V0_BASE, V1_BASE, V2_BASE, WAVE_TRI, WAVE_SAW, WAVE_PULSE, WAVE_NOISE, WAVEFORM_NAMES,
-    FILT_LP, FILT_HP, FILT_BP, FILT_BR, FILT_V0,
+    FILT_LP, FILT_HP, FILT_BP, FILT_BR, FILT_V0, SAMPLE_RATE,
     # voice helpers
     setup_voice, gate_on, gate_off, set_volume, set_voice_freq, set_filter,
     # signal / capture
@@ -26,7 +26,7 @@ from tt6581_tb import (
 #  Tests
 # =============================================================================
 
-@cocotb.test()
+# @cocotb.test()
 async def test_waveforms(dut):
     """
     Play all four waveforms at 1000 Hz and plot them.
@@ -183,9 +183,9 @@ async def test_envelopes(dut):
     dut._log.info("=== test_envelopes: done ===")
 
 
-# @cocotb.test()
+@cocotb.test()
 async def test_filter(dut):
-    """Frequency sweep through LP, HP, BP, BR filters at fc = 1 kHz."""
+    """Sweep-based filter response with bypass-normalised Bode plot."""
 
     import numpy as np
 
@@ -194,64 +194,66 @@ async def test_filter(dut):
     clock = Clock(dut.clk, 20, unit="ns")   # 50 MHz
     cocotb.start_soon(clock.start())
 
-    FC_HZ = 1000.0
-    Q = 0.707                                # Butterworth-like damping
+    FC_HZ  = 1000.0
+    Q      = 0.707                           # Butterworth-like damping
+    N_FREQ = 20
+    SETTLE = 200                             # audio samples (~4 ms)
 
-    filter_modes = [
-        ("LP", FILT_LP),
-        ("HP", FILT_HP),
-        ("BP", FILT_BP),
-        ("BR", FILT_BR),
+    test_freqs = np.logspace(np.log10(100), np.log10(10000), N_FREQ).tolist()
+
+    # Bypass first, then each filter mode
+    modes = [
+        ("bypass", 0),
+        ("LP",     FILT_LP),
+        ("HP",     FILT_HP),
+        ("BP",     FILT_BP),
+        ("BR",     FILT_BR),
     ]
 
-    # 20 logarithmically-spaced test frequencies from 50 Hz to 20 kHz
-    test_freqs = np.logspace(np.log10(50), np.log10(20000), 20).tolist()
+    all_rms: dict[str, list[tuple[float, float]]] = {}
 
-    SETTLE_SAMPLES = 1000   # 20 ms — let filter reach steady state
-    CAPTURE_SAMPLES = 500   # 10 ms — measure RMS amplitude
+    for mode_name, mode_bits in modes:
+        dut._log.info(f"*** Sweep: {mode_name} ***")
 
-    all_responses: dict[str, list[tuple[float, float]]] = {}
-
-    for mode_name, mode_bits in filter_modes:
-        dut._log.info(f"*** Filter mode: {mode_name} ***")
-
-        # Reset between modes so the SVF state registers start clean
         await reset_dut(dut)
         await set_volume(dut, 0xFF)
 
-        # Configure filter: route voice 0 through filter, set mode
-        en_mode = FILT_V0 | mode_bits
+        # bypass → en_mode = 0 (voice not routed through filter)
+        en_mode = (FILT_V0 | mode_bits) if mode_bits else 0
         await set_filter(dut, FC_HZ, Q, en_mode)
 
-        # Set up voice 0 — sawtooth, instant full envelope
+        # Triangle wave — closest to sine, keeps harmonic energy low
         await setup_voice(dut, V0_BASE, freq_hz=test_freqs[0],
-                          waveform=WAVE_SAW, pw=0x800,
+                          waveform=WAVE_TRI, pw=0x800,
                           attack=0, decay=0, sustain=0xF, release=0)
-        await gate_on(dut, V0_BASE, WAVE_SAW)
+        await gate_on(dut, V0_BASE, WAVE_TRI)
+
+        # Initial settle
+        await capture_audio(dut, num_samples=SETTLE, log_every=0)
 
         responses: list[tuple[float, float]] = []
 
         for freq in test_freqs:
-            # Reprogram voice frequency (gate stays on)
             await set_voice_freq(dut, V0_BASE, freq)
 
-            # Settle — discard transient
-            await capture_audio(dut, num_samples=SETTLE_SAMPLES, log_every=0)
+            # Settle — filter time-constant at fc=1 kHz is ~0.2 ms;
+            # 200 samples = 4 ms ≈ 20 time-constants → well settled.
+            await capture_audio(dut, num_samples=SETTLE, log_every=0)
 
-            # Capture & measure
-            samples = await capture_audio(dut, num_samples=CAPTURE_SAMPLES,
+            # Capture ≥ 3 full cycles for a stable RMS measurement
+            n_cap = max(500, int(3.0 / freq * SAMPLE_RATE))
+            samples = await capture_audio(dut, num_samples=n_cap,
                                           log_every=0)
-            rms = float(np.sqrt(np.mean(np.array(samples, dtype=float) ** 2)))
+            rms = float(np.sqrt(np.mean(np.array(samples) ** 2)))
             responses.append((freq, rms))
-            dut._log.info(f"  {freq:8.1f} Hz  →  RMS = {rms:.1f}")
+            dut._log.info(f"  {mode_name} {freq:8.1f} Hz → RMS = {rms:.6f}")
 
-        all_responses[mode_name] = responses
+        all_rms[mode_name] = responses
 
-        # Gate off before next mode
-        await gate_off(dut, V0_BASE, WAVE_SAW)
+        await gate_off(dut, V0_BASE, WAVE_TRI)
         await ClockCycles(dut.clk, 5000)
 
-    # Plot all four responses on one graph
-    plot_filter_response(all_responses, FC_HZ, Q)
+    # Plot — the function handles bypass normalisation internally
+    plot_filter_response(all_rms, FC_HZ, Q)
 
     dut._log.info("=== test_filter: done ===")

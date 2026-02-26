@@ -232,12 +232,13 @@ def plot_filter_response(responses: dict[str, list[tuple[float, float]]],
                          q: float,
                          filename: str = "filter_response.png",
                          sample_rate: int = SAMPLE_RATE):
-    """Plot SVF frequency response for multiple filter modes.
+    """Plot bypass-normalised SVF frequency response (Bode plot).
 
     Parameters
     ----------
     responses : dict
         mode_name -> list of (frequency_hz, rms_amplitude) tuples.
+        Must include a ``"bypass"`` key for the unfiltered reference.
     fc_hz : float
         Filter cutoff frequency in Hz.
     q : float
@@ -247,28 +248,61 @@ def plot_filter_response(responses: dict[str, list[tuple[float, float]]],
     sample_rate : int
         Sample rate used during capture.
     """
-    # Find global max RMS for 0-dB normalisation
-    all_rms = [rms for mode_data in responses.values() for _, rms in mode_data]
-    max_rms = max(all_rms) if all_rms else 1.0
+    # ── Bypass reference ─────────────────────────────────────────────────
+    ref_data = responses.get("bypass", [])
+    ref_rms = {f: rms for f, rms in ref_data}
+
+    colors = {"LP": "#1f77b4", "HP": "#d62728", "BP": "#2ca02c", "BR": "#9467bd"}
+
+    # ── Write CSV ────────────────────────────────────────────────────────
+    csv_path = os.path.join(TB_OUTPUT_DIR, filename.rsplit(".", 1)[0] + ".csv")
+    mode_names = [m for m in responses if m != "bypass"]
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        header = ["frequency_hz", "bypass_rms"]
+        for m in mode_names:
+            header += [f"{m}_rms", f"{m}_dB"]
+        writer.writerow(header)
+
+        if ref_data:
+            for i, (freq, ref) in enumerate(ref_data):
+                row = [f"{freq:.2f}", f"{ref:.8f}"]
+                for m in mode_names:
+                    rms = responses[m][i][1] if i < len(responses[m]) else 0
+                    gain = rms / ref if ref > 1e-12 else 1e-12
+                    db = 20 * np.log10(max(gain, 1e-12))
+                    row += [f"{rms:.8f}", f"{db:.2f}"]
+                writer.writerow(row)
 
     # ── Plot ─────────────────────────────────────────────────────────────
-    colors = {"LP": "blue", "HP": "red", "BP": "green", "BR": "purple"}
-
     plot_path = os.path.join(TB_OUTPUT_DIR, filename)
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    for mode_name, mode_data in responses.items():
-        freqs = [f for f, _ in mode_data]
-        db_vals = [20 * np.log10(r / max_rms) if r > 0 else -100
-                   for _, r in mode_data]
+    for mode_name in mode_names:
+        mode_data = responses[mode_name]
+        freqs, gains_db = [], []
+        for freq, rms in mode_data:
+            ref = ref_rms.get(freq, 1e-12)
+            gain = rms / ref if ref > 1e-12 else 1e-12
+            freqs.append(freq)
+            gains_db.append(20 * np.log10(max(gain, 1e-12)))
+
         color = colors.get(mode_name, "black")
-        ax.plot(freqs, db_vals, "o-", color=color, linewidth=2,
-                markersize=5, label=mode_name)
+        ax.semilogx(freqs, gains_db, "o-", color=color, lw=2,
+                    markersize=5, label=mode_name)
 
-    ax.axvline(x=fc_hz, color="grey", linestyle="--", linewidth=1.5,
-               alpha=0.7, label=f"fc = {fc_hz:.0f} Hz")
+    # Cutoff and -3 dB reference lines
+    ax.axvline(x=fc_hz, color="black", ls="--", lw=1.5, alpha=0.5,
+               label=f"fc = {fc_hz:.0f} Hz")
+    ax.axhline(-3, color="black", ls="-", lw=0.8, alpha=0.5, label="-3 dB")
+    ax.plot(fc_hz, -3, "ko", ms=6)
 
-    ax.set_xscale("log")
+    # Reference slope: -40 dB/decade (2nd-order rolloff)
+    f_slope = np.logspace(np.log10(fc_hz), np.log10(max(freqs) * 1.5), 50)
+    slope_db = -40.0 * np.log10(f_slope / fc_hz)
+    ax.semilogx(f_slope, slope_db, ":", color="grey", lw=1.2, alpha=0.6,
+                label="-40 dB/dec")
+
     ax.set_xlabel("Frequency (Hz)")
     ax.set_ylabel("Magnitude (dB)")
     ax.set_title(f"SVF Frequency Response — fc = {fc_hz:.0f} Hz, Q = {q:.2f}")
