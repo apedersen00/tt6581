@@ -52,24 +52,41 @@ def generate_markdown() -> str:
         lines.append("| Test | Status | Time |")
         lines.append("|------|--------|------|")
         for tc in cases:
-            icon = "✅" if tc["status"] == "passed" else "❌"
+            icon = "Pass" if tc["status"] == "passed" else "Fail"
             lines.append(f"| `{tc['name']}` | {icon} {tc['status']} | {tc['time']}s |")
         lines.append("")
-    else:
-        lines.append("> ⚠️ `results.xml` not found — skipping test table.\n")
 
-    # ── Plots ────────────────────────────────────────────────────────────
-    pngs = sorted(glob.glob(os.path.join(PLOT_DIR, "*.png")))
-    if pngs:
-        lines.append("## Plots\n")
-        for png in pngs:
-            name = os.path.splitext(os.path.basename(png))[0]
-            title = name.replace("_", " ").title()
-            lines.append(f"### {title}\n")
-            lines.append(img_tag(png, alt=title))
-            lines.append("")
-    else:
-        lines.append("> No plots found in `test/tmp/`.\n")
+    #==================================
+    # Waveform Test
+    #==================================
+    lines.append('## Waveform Test')
+    lines.append('All four supported waveform types are generated at a frequency of 1kHz and plotted.')
+    lines.append('Distortion occurs due to reconstruction from Delta-Sigma DAC.')
+
+    path = os.path.join(PLOT_DIR, 'wave_triangle.png')
+    lines.append(img_tag(path, alt='path'))
+
+    path = os.path.join(PLOT_DIR, 'wave_sawtooth.png')
+    lines.append(img_tag(path, alt='path'))
+
+    path = os.path.join(PLOT_DIR, 'wave_pulse.png')
+    lines.append(img_tag(path, alt='path'))
+
+    path = os.path.join(PLOT_DIR, 'wave_noise.png')
+    lines.append(img_tag(path, alt='path'))
+
+    #==================================
+    # Frequency Test
+    #==================================
+    lines.append('## Frequency Test')
+    lines.append('All three voices play triangle waves at different frequencies.')
+    lines.append('The FFT shows peaks at the input frequencies.')
+
+    path = os.path.join(PLOT_DIR, 'wabe_freq_0.png')
+    lines.append(img_tag(path, alt='path'))
+
+    path = os.path.join(PLOT_DIR, 'wabe_freq_1.png')
+    lines.append(img_tag(path, alt='path'))
 
     return "\n".join(lines)
 
