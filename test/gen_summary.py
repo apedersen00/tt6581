@@ -108,13 +108,25 @@ def generate_markdown() -> str:
     lines.append('')
 
     #==================================
-    # Filter Test
+    # Filter Tests
     #==================================
     lines.append("## Filter Test\n")
     lines.append("Frequency response of the Chamberlin State-Variable Filter in all modes.\n")
 
-    path = os.path.join(PLOT_DIR, 'env_A4_D4_S10_R4.png')
-    lines.append(img_tag(path, alt='envelope test 0'))
+    path = os.path.join(PLOT_DIR, 'filter_response_BP.png')
+    lines.append(img_tag(path, alt='filter BP'))
+    lines.append('')
+
+    path = os.path.join(PLOT_DIR, 'filter_response_HP.png')
+    lines.append(img_tag(path, alt='filter BP'))
+    lines.append('')
+
+    path = os.path.join(PLOT_DIR, 'filter_response_BP.png')
+    lines.append(img_tag(path, alt='filter BP'))
+    lines.append('')
+
+    path = os.path.join(PLOT_DIR, 'filter_response_BR.png')
+    lines.append(img_tag(path, alt='filter BP'))
     lines.append('')
 
     return "\n".join(lines)
