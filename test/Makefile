@@ -2,14 +2,13 @@
 # See https://docs.cocotb.org/en/stable/quickstart.html for more info
 
 # defaults
-SIM ?= verilator
 FST ?= -fst
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES = controller.sv delta_sigma.sv envelope.sv mult.sv multi_voice.sv reg_file.sv spi.sv svf.sv tick_gen.sv top.sv tt6581.sv
 
 ifneq ($(GATES),yes)
-
+SIM = verilator
 # RTL simulation:
 SIM_BUILD		 = sim_build/rtl
 VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
