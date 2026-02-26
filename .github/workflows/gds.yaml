@@ -38,6 +38,22 @@ jobs:
       - name: GL test
         uses: TinyTapeout/tt-gds-action/gl_test@ttihp26a
 
+      - name: Install summary dependencies
+        if: always()
+        run: pip install matplotlib numpy
+
+      - name: Generate summary
+        if: always()
+        working-directory: test
+        run: python gen_summary.py
+
+      - name: Upload test plots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gl-test-plots
+          path: test/tmp/*
+
   viewer:
     needs: gds
     runs-on: ubuntu-24.04
