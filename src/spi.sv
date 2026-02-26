@@ -41,8 +41,8 @@ module spi (
 );
 
   logic [2:0] sclk_sync;
-  logic [2:0] cs_sync;
-  logic [2:0] mosi_sync;
+  logic [1:0] cs_sync;
+  logic [1:0] mosi_sync;
 
   // Re-time SPI signals to system clock
   always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -52,8 +52,8 @@ module spi (
       mosi_sync <= '0;
     end else begin
       sclk_sync <= {sclk_sync[1:0], sclk_i};
-      cs_sync   <= {cs_sync[1:0]  , cs_i};
-      mosi_sync <= {mosi_sync[1:0], mosi_i};
+      cs_sync   <= {cs_sync[0]    , cs_i};
+      mosi_sync <= {mosi_sync[0]  , mosi_i};
     end
   end
 
@@ -70,7 +70,7 @@ module spi (
    * State machine
    ***********************************/
   logic [3:0] bit_cnt;
-  logic [7:0] shift_reg;
+  logic [6:0] shift_reg;
   logic [7:0] data_out_reg;
 
   logic is_write_cmd; // 1 = Write, 0 = Read
@@ -91,7 +91,7 @@ module spi (
 
       // On rising edge of SCLK
       if (sclk_rise) begin
-        shift_reg <= {shift_reg[6:0], mosi_sync[1]};
+        shift_reg <= {shift_reg[5:0], mosi_sync[1]};
 
         if (bit_cnt == 7) begin
           reg_addr_o    <= {shift_reg[5:0], mosi_sync[1]};

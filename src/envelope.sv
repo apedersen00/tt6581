@@ -62,7 +62,6 @@ module envelope (
   logic [17:0]  decay_lut;
   logic [23:0]  attack_step;
   logic [23:0]  decay_step;
-  logic [23:0]  release_step;
   logic [3:0]   decay_release;
 
   assign sustain_vol   = {sustain_i, sustain_i, 16'h0};
@@ -71,7 +70,6 @@ module envelope (
   assign ready_o       = (cur_state == STATE_DONE);
   assign attack_step   = {6'd0, attack_lut};
   assign decay_step    = {6'd0, decay_lut};
-  assign release_step  = decay_step;
   assign decay_release = (cur_voice_state == STATE_DECAY) ? decay_i : release_i; 
 
   /************************************

@@ -188,4 +188,9 @@ module svf (
     else                                wave_o = selected_out[13:0];
   end
 
+  wire _unused_ok = &{
+    mult_prod_i[39],
+    mult_prod_i[11:0]
+  };
+
 endmodule

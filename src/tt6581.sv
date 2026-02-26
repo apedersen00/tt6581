@@ -317,4 +317,8 @@ module tt6581 (
     .wave_o         ( wave_o      )
   );
 
+  wire _unused_ok = &{
+    filt_en_mode[7:6]
+  };
+
 endmodule
