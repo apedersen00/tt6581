@@ -3,3 +3,4 @@ cocotb==2.0.1
 numpy
 matplotlib
 scipy
+Pillow

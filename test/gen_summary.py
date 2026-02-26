@@ -2,11 +2,23 @@
 
 import argparse
 import base64
+import io
 import os
 import xml.etree.ElementTree as ET
+from PIL import Image
 
 RESULTS_XML = os.path.join(os.path.dirname(__file__), "results.xml")
 PLOT_DIR = os.path.join(os.path.dirname(__file__), "tmp")
+
+# GitHub step summary hard limit is 1024 kB.  Leave headroom for the
+# Markdown text around the images.
+MAX_SUMMARY_KB = 1024
+TEXT_HEADROOM_KB = 24
+MAX_IMAGE_BUDGET = (MAX_SUMMARY_KB - TEXT_HEADROOM_KB) * 1024  # bytes (base64)
+
+# Target pixel width when down-scaling plots for the summary.
+RESIZE_WIDTH = 720
+
 
 def parse_results(xml_path: str) -> list[dict]:
     tree = ET.parse(xml_path)
@@ -29,11 +41,25 @@ def parse_results(xml_path: str) -> list[dict]:
     return cases
 
 
-def img_tag(path: str, alt: str = "", width: int = 800) -> str:
+def _compress_png(path: str) -> bytes:
+    img = Image.open(path)
+
+    # Down-scale if wider than target
+    if img.width > RESIZE_WIDTH:
+        ratio = RESIZE_WIDTH / img.width
+        new_size = (RESIZE_WIDTH, int(img.height * ratio))
+        img = img.resize(new_size, Image.LANCZOS)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
+def img_tag(path: str, alt: str = "", width: int = 720) -> str:
     if not os.path.isfile(path):
         return f"*Plot not found: `{os.path.basename(path)}`*"
-    with open(path, "rb") as f:
-        data = base64.b64encode(f.read()).decode()
+    png_bytes = _compress_png(path)
+    data = base64.b64encode(png_bytes).decode()
     return f'<img src="data:image/png;base64,{data}" alt="{alt}" width="{width}">'
 
 
@@ -113,12 +139,12 @@ def generate_markdown() -> str:
     lines.append("## Filter Test\n")
     lines.append("Frequency response of the Chamberlin State-Variable Filter in all modes.\n")
 
-    path = os.path.join(PLOT_DIR, 'filter_response_BP.png')
-    lines.append(img_tag(path, alt='filter BP'))
+    path = os.path.join(PLOT_DIR, 'filter_response_LP.png')
+    lines.append(img_tag(path, alt='filter LP'))
     lines.append('')
 
     path = os.path.join(PLOT_DIR, 'filter_response_HP.png')
-    lines.append(img_tag(path, alt='filter BP'))
+    lines.append(img_tag(path, alt='filter HP'))
     lines.append('')
 
     path = os.path.join(PLOT_DIR, 'filter_response_BP.png')
@@ -126,8 +152,28 @@ def generate_markdown() -> str:
     lines.append('')
 
     path = os.path.join(PLOT_DIR, 'filter_response_BR.png')
-    lines.append(img_tag(path, alt='filter BP'))
+    lines.append(img_tag(path, alt='filter BR'))
     lines.append('')
+
+    return "\n".join(lines)
+
+
+def _truncate_to_budget(md: str) -> str:
+    """If the summary exceeds the GitHub step summary limit, drop images
+    from the bottom until it fits."""
+    limit = MAX_SUMMARY_KB * 1024
+    if len(md.encode()) <= limit:
+        return md
+
+    lines = md.split("\n")
+    # Walk backwards, dropping <img …> lines until under budget
+    while len("\n".join(lines).encode()) > limit and lines:
+        for i in range(len(lines) - 1, -1, -1):
+            if lines[i].strip().startswith("<img "):
+                lines[i] = "*Image omitted to fit GitHub summary size limit.*"
+                break
+        else:
+            break  # no more images to drop
 
     return "\n".join(lines)
 
@@ -141,18 +187,21 @@ def main():
     args = parser.parse_args()
 
     md = generate_markdown()
+    md = _truncate_to_budget(md)
 
     if args.output:
         with open(args.output, "w") as f:
             f.write(md)
-        print(f"Summary written to {args.output}")
+        size_kb = len(md.encode()) / 1024
+        print(f"Summary written to {args.output} ({size_kb:.0f} kB)")
         return
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a") as f:
             f.write(md)
-        print(f"Summary written to $GITHUB_STEP_SUMMARY")
+        size_kb = len(md.encode()) / 1024
+        print(f"Summary written to $GITHUB_STEP_SUMMARY ({size_kb:.0f} kB)")
     else:
         print(md)
 
