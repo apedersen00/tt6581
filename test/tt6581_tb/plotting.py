@@ -234,6 +234,8 @@ def plot_filter_response(responses: dict[str, list[tuple[float, float]]],
                          sample_rate: int = SAMPLE_RATE):
     """Plot bypass-normalised SVF frequency response (Bode plot).
 
+    Each filter mode is plotted in its own figure.
+
     Parameters
     ----------
     responses : dict
@@ -245,6 +247,7 @@ def plot_filter_response(responses: dict[str, list[tuple[float, float]]],
         Filter Q factor.
     filename : str
         Output PNG filename (saved under TB_OUTPUT_DIR).
+        Per-mode files are named ``filter_response_LP.png``, etc.
     sample_rate : int
         Sample rate used during capture.
     """
@@ -274,9 +277,8 @@ def plot_filter_response(responses: dict[str, list[tuple[float, float]]],
                     row += [f"{rms:.8f}", f"{db:.2f}"]
                 writer.writerow(row)
 
-    # ── Plot ─────────────────────────────────────────────────────────────
-    plot_path = os.path.join(TB_OUTPUT_DIR, filename)
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # ── Per-mode plots ───────────────────────────────────────────────────
+    base, ext = filename.rsplit(".", 1)
 
     for mode_name in mode_names:
         mode_data = responses[mode_name]
@@ -288,27 +290,30 @@ def plot_filter_response(responses: dict[str, list[tuple[float, float]]],
             gains_db.append(20 * np.log10(max(gain, 1e-12)))
 
         color = colors.get(mode_name, "black")
+        plot_path = os.path.join(TB_OUTPUT_DIR, f"{base}_{mode_name}.{ext}")
+
+        fig, ax = plt.subplots(figsize=(12, 6))
         ax.semilogx(freqs, gains_db, "o-", color=color, lw=2,
-                    markersize=5, label=mode_name)
+                     markersize=5, label=mode_name)
 
-    # Cutoff and -3 dB reference lines
-    ax.axvline(x=fc_hz, color="black", ls="--", lw=1.5, alpha=0.5,
-               label=f"fc = {fc_hz:.0f} Hz")
-    ax.axhline(-3, color="black", ls="-", lw=0.8, alpha=0.5, label="-3 dB")
-    ax.plot(fc_hz, -3, "ko", ms=6)
+        # Cutoff and -3 dB reference lines
+        ax.axvline(x=fc_hz, color="black", ls="--", lw=1.5, alpha=0.5,
+                   label=f"fc = {fc_hz:.0f} Hz")
+        ax.axhline(-3, color="black", ls="-", lw=0.8, alpha=0.5, label="-3 dB")
+        ax.plot(fc_hz, -3, "ko", ms=6)
 
-    # Reference slope: -40 dB/decade (2nd-order rolloff)
-    f_slope = np.logspace(np.log10(fc_hz), np.log10(max(freqs) * 1.5), 50)
-    slope_db = -40.0 * np.log10(f_slope / fc_hz)
-    ax.semilogx(f_slope, slope_db, ":", color="grey", lw=1.2, alpha=0.6,
-                label="-40 dB/dec")
+        # Reference slope: -40 dB/decade (2nd-order rolloff)
+        f_slope = np.logspace(np.log10(fc_hz), np.log10(max(freqs) * 1.5), 50)
+        slope_db = -40.0 * np.log10(f_slope / fc_hz)
+        ax.semilogx(f_slope, slope_db, ":", color="grey", lw=1.2, alpha=0.6,
+                    label="-40 dB/dec")
 
-    ax.set_xlabel("Frequency (Hz)")
-    ax.set_ylabel("Magnitude (dB)")
-    ax.set_title(f"SVF Frequency Response — fc = {fc_hz:.0f} Hz, Q = {q:.2f}")
-    ax.set_ylim(-60, 6)
-    ax.grid(True, which="both", alpha=0.3)
-    ax.legend(loc="lower left")
-    fig.tight_layout()
-    fig.savefig(plot_path, dpi=150)
-    plt.close(fig)
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("Magnitude (dB)")
+        ax.set_title(f"SVF {mode_name} Response — fc = {fc_hz:.0f} Hz, Q = {q:.2f}")
+        ax.set_ylim(-60, 6)
+        ax.grid(True, which="both", alpha=0.3)
+        ax.legend(loc="lower left")
+        fig.tight_layout()
+        fig.savefig(plot_path, dpi=150)
+        plt.close(fig)

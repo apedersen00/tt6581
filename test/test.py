@@ -196,7 +196,7 @@ async def test_filter(dut):
 
     FC_HZ  = 1000.0
     Q      = 0.707                           # Butterworth-like damping
-    N_FREQ = 20
+    N_FREQ = 40
     SETTLE = 200                             # audio samples (~4 ms)
 
     test_freqs = np.logspace(np.log10(100), np.log10(10000), N_FREQ).tolist()
