@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
-"""Generate a Markdown test summary with embedded plots for GitHub Actions."""
 
+import argparse
 import base64
-import glob
 import os
-import sys
 import xml.etree.ElementTree as ET
 
 RESULTS_XML = os.path.join(os.path.dirname(__file__), "results.xml")
 PLOT_DIR = os.path.join(os.path.dirname(__file__), "tmp")
 
-
 def parse_results(xml_path: str) -> list[dict]:
-    """Parse JUnit XML and return a list of test-case dicts."""
     tree = ET.parse(xml_path)
     root = tree.getroot()
     cases = []
@@ -34,7 +30,8 @@ def parse_results(xml_path: str) -> list[dict]:
 
 
 def img_tag(path: str, alt: str = "", width: int = 800) -> str:
-    """Return an HTML <img> tag with the file base64-encoded inline."""
+    if not os.path.isfile(path):
+        return f"*Plot not found: `{os.path.basename(path)}`*"
     with open(path, "rb") as f:
         data = base64.b64encode(f.read()).decode()
     return f'<img src="data:image/png;base64,{data}" alt="{alt}" width="{width}">'
@@ -45,7 +42,9 @@ def generate_markdown() -> str:
     lines: list[str] = []
     lines.append("# TT6581 Test Results\n")
 
-    # ── Test table ───────────────────────────────────────────────────────
+    #==================================
+    # Test Table
+    #==================================
     if os.path.isfile(RESULTS_XML):
         cases = parse_results(RESULTS_XML)
         lines.append("## Test Cases\n")
@@ -59,50 +58,91 @@ def generate_markdown() -> str:
     #==================================
     # Waveform Test
     #==================================
-    lines.append('## Waveform Test')
-    lines.append('All four supported waveform types are generated at a frequency of 1kHz and plotted.')
-    lines.append('Distortion occurs due to reconstruction from Delta-Sigma DAC.')
+    lines.append("## Waveform Test\n")
+    lines.append("All four waveform types are generated at a frequency of 1kHz and plotted.")
+    lines.append("Distortion occurs due to reconstruction from Delta-Sigma DAC.\n")
 
     path = os.path.join(PLOT_DIR, 'wave_triangle.png')
-    lines.append(img_tag(path, alt='path'))
+    lines.append(img_tag(path, alt='triangle waveform'))
+    lines.append('')
 
     path = os.path.join(PLOT_DIR, 'wave_sawtooth.png')
-    lines.append(img_tag(path, alt='path'))
+    lines.append(img_tag(path, alt='sawtooth waveform'))
+    lines.append('')
 
     path = os.path.join(PLOT_DIR, 'wave_pulse.png')
-    lines.append(img_tag(path, alt='path'))
+    lines.append(img_tag(path, alt='pulse waveform'))
+    lines.append('')
 
     path = os.path.join(PLOT_DIR, 'wave_noise.png')
-    lines.append(img_tag(path, alt='path'))
+    lines.append(img_tag(path, alt='noise waveform'))
+    lines.append('')
 
     #==================================
     # Frequency Test
     #==================================
-    lines.append('## Frequency Test')
-    lines.append('All three voices play triangle waves at different frequencies.')
-    lines.append('The FFT shows peaks at the input frequencies.')
+    lines.append("## Frequency Test\n")
+    lines.append("All three voices play triangle waves at different frequencies.")
+    lines.append("The FFT shows peaks at the input frequencies.\n")
 
-    path = os.path.join(PLOT_DIR, 'wabe_freq_0.png')
-    lines.append(img_tag(path, alt='path'))
+    path = os.path.join(PLOT_DIR, 'wave_freq_0.png')
+    lines.append(img_tag(path, alt='frequency test 0'))
+    lines.append('')
 
-    path = os.path.join(PLOT_DIR, 'wabe_freq_1.png')
-    lines.append(img_tag(path, alt='path'))
+    path = os.path.join(PLOT_DIR, 'wave_freq_1.png')
+    lines.append(img_tag(path, alt='frequency test 1'))
+    lines.append('')
+
+    #==================================
+    # Envelope Test
+    #==================================
+    lines.append("## Envelope Test\n")
+    lines.append("ADSR envelope shapes for different attack/decay/sustain/release settings.\n")
+
+    path = os.path.join(PLOT_DIR, 'env_A0_D0_S15_R0.png')
+    lines.append(img_tag(path, alt='envelope test 0'))
+    lines.append('')
+
+    path = os.path.join(PLOT_DIR, 'env_A4_D4_S10_R4.png')
+    lines.append(img_tag(path, alt='envelope test 0'))
+    lines.append('')
+
+    #==================================
+    # Filter Test
+    #==================================
+    lines.append("## Filter Test\n")
+    lines.append("Frequency response of the Chamberlin State-Variable Filter in all modes.\n")
+
+    path = os.path.join(PLOT_DIR, 'env_A4_D4_S10_R4.png')
+    lines.append(img_tag(path, alt='envelope test 0'))
+    lines.append('')
 
     return "\n".join(lines)
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "-o", "--output",
+        help="Write summary to this file instead of GITHUB_STEP_SUMMARY",
+    )
+    args = parser.parse_args()
+
     md = generate_markdown()
 
-    # Write to $GITHUB_STEP_SUMMARY if available (CI), else stdout
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(md)
+        print(f"Summary written to {args.output}")
+        return
+
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a") as f:
             f.write(md)
-        print(f"Summary written to $GITHUB_STEP_SUMMARY ({len(md)} chars)")
+        print(f"Summary written to $GITHUB_STEP_SUMMARY")
     else:
         print(md)
-
 
 if __name__ == "__main__":
     main()
