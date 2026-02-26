@@ -26,7 +26,7 @@ from tt6581_tb import (
 #  Tests
 # =============================================================================
 
-# @cocotb.test()
+@cocotb.test()
 async def test_waveforms(dut):
     """
     Play all four waveforms at 1000 Hz and plot them.
@@ -66,7 +66,7 @@ async def test_waveforms(dut):
 
     dut._log.info("=== test_waveforms: done ===")
 
-# @cocotb.test()
+@cocotb.test()
 async def test_frequencies(dut):
     """
     Play three voices at different frequencies and calculate frequency spectrum.
@@ -128,7 +128,7 @@ async def test_frequencies(dut):
 
     dut._log.info("=== test_frequencies: done ===")
 
-# @cocotb.test()
+@cocotb.test()
 async def test_envelopes(dut):
     """Test different ADSR envelope settings with a sawtooth and plot the
     amplitude envelope over time."""
