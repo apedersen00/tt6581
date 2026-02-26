@@ -52,6 +52,5 @@ jobs:
         with:
           name: test-results
           path: |
-            test/tb.fst
             test/results.xml
             test/tmp/*
