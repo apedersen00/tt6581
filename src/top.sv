@@ -16,23 +16,31 @@ module tt_um_andreasp00 (
     input  wire       rst_n     // reset_n - low to reset
 );
 
-  wire sclk = ui_in[0];
-  wire cs   = ui_in[1];
-  wire mosi = ui_in[2];
-  logic audio_out;
+  // SPI
+  logic sclk;
+  logic cs;
+  logic mosi;
+  logic miso;
 
-  wire miso;
+  // Delta-Sigma PDM output
+  logic pdm;
 
-  // Dedicated Outputs
-  assign uo_out[0]   = miso;
-  assign uo_out[1]   = audio_out;  // 1-bit delta-sigma PDM output
-  assign uo_out[7:2] = 6'b0;
+  // SPI pin mapping
+  assign cs         = uio_in[0];
+  assign mosi       = uio_in[1];
+  assign uio_out[2] = miso;
+  assign sclk       = uio_in[3];
 
-  // Bidirectional IO Outputs
-  assign uio_out = 8'b0;
+  // Tie off unused bidirectional outputs
+  assign uio_out[1:0] = 2'b0;
+  assign uio_out[7:3] = 5'b0;
 
-  // Bidirectional IO Enables
-  assign uio_oe  = 8'b0;  // All set as INPUTS (high-Z)
+  // Bidirectional IO enables
+  assign uio_oe = 8'b00000100;
+
+  // Dedicated outputs
+  assign uo_out[0]   = pdm;
+  assign uo_out[7:1] = 7'b0;
 
   tt6581 tt6581_inst (
     .clk_i  ( clk       ),
@@ -41,13 +49,13 @@ module tt_um_andreasp00 (
     .cs_i   ( cs        ),
     .mosi_i ( mosi      ),
     .miso_o ( miso      ),
-    .wave_o ( audio_out )
+    .wave_o ( pdm       )
   );
 
   wire _unused_ok = &{
       ena,
-      uio_in,
-      ui_in[7:3],
+      uio_in[7:4],
+      ui_in,
       1'b0
   };
 

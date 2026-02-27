@@ -16,8 +16,8 @@ from .constants import (
 async def reset_dut(dut, cycles: int = 10):
     """Assert reset for *cycles* clocks, then deassert and settle."""
     dut.ena.value = 1
-    dut.ui_in.value = 0x02   # cs=1 (deasserted), sclk=0, mosi=0
-    dut.uio_in.value = 0
+    dut.ui_in.value = 0x00
+    dut.uio_in.value = 0x01  # cs=1 (deasserted), sclk=0, mosi=0
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, cycles)
     dut.rst_n.value = 1
@@ -40,7 +40,7 @@ async def capture_audio(dut, num_samples: int = 500,
     for i in range(num_pdm):
         await ClockCycles(dut.clk, PDM_CLK_DIV)
         try:
-            pdm_bits[i] = 1.0 if str(dut.uo_out.value)[-2] == '1' else 0.0
+            pdm_bits[i] = 1.0 if str(dut.uo_out.value)[-1] == '1' else 0.0
         except (ValueError, IndexError):
             pdm_bits[i] = 0.0
 

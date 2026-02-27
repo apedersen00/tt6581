@@ -1,12 +1,8 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-/* This testbench just instantiates the module and makes some convenient wires
-  that can be driven / tested by the cocotb test.py.
-*/
 module tb ();
 
-  // Dump waveforms (skip during gate-level test to avoid VCD/FST issues).
 `ifndef GL_TEST
   initial begin
     $dumpfile("tb.fst");
@@ -14,7 +10,6 @@ module tb ();
   end
 `endif
 
-  // Wire up the inputs and outputs:
   reg clk;
   reg rst_n;
   reg ena;
