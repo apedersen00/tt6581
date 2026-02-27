@@ -1,16 +1,15 @@
 //-------------------------------------------------------------------------------------------------
 //
-//  File: tb_sid_player.sv
+//  File: tb_tt6581_player.sv
 //
-//  Description: Testbench wrapper for replaying SID player stimulus on TT6581.
-//               Same interface as tb_tt6581.sv — the C++ sim drives the SPI signals.
+//  Description: Wrapper for Verilator testbench.
 //
 //  Author:
 //      - A. Pedersen
 //
 //-------------------------------------------------------------------------------------------------
 
-module tb_sid_player (
+module tb_tt6581_player (
   input   logic       clk_i,      // System clock (50 MHz)
   input   logic       rst_ni,     // Active low reset
   input   logic       sclk_i,     // SPI Clock
@@ -34,7 +33,7 @@ module tb_sid_player (
     // Stimulus & waveform dump
     initial begin
       if ($test$plusargs("trace") != 0) begin
-        $dumpfile("logs/tb_sid_player.vcd");
+        $dumpfile("logs/tb_tt6581_player.vcd");
         $dumpvars();
       end
 

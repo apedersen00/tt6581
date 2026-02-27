@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------------------
 //
-//  File: sim_sid_plyaer.cpp
+//  File: sim_tt6581_player.cpp
 //  Description: Verilator testbench for TT6581.
 //               Plays SID stimulus captured from a MOS6502 emulator.
 //
@@ -17,7 +17,7 @@
 #include <string>
 #include <cstdint>
 #include <verilated.h>
-#include "Vtb_sid_player.h"
+#include "Vtb_tt6581_player.h"
 
 #define CLK_PERIOD_NS 20
 #define SPI_CLK_DIV   2
@@ -41,7 +41,7 @@ struct StimulusEvent {
 static uint64_t g_clk_count = 0;
 
 void sys_tick(const std::unique_ptr<VerilatedContext>& ctx,
-              const std::unique_ptr<Vtb_sid_player>& top) {
+              const std::unique_ptr<Vtb_tt6581_player>& top) {
     top->clk_i = 0;
     top->eval();
     ctx->timeInc(CLK_PERIOD_NS / 2);
@@ -66,7 +66,7 @@ void sys_tick(const std::unique_ptr<VerilatedContext>& ctx,
 
 // Multi-tick
 void tick_batch(const std::unique_ptr<VerilatedContext>& ctx,
-                const std::unique_ptr<Vtb_sid_player>& top,
+                const std::unique_ptr<Vtb_tt6581_player>& top,
                 uint64_t ticks) {
     for (uint64_t i = 0; i < ticks; i++) {
         sys_tick(ctx, top);
@@ -74,7 +74,7 @@ void tick_batch(const std::unique_ptr<VerilatedContext>& ctx,
 }
 
 void spi_write(const std::unique_ptr<VerilatedContext>& ctx,
-               const std::unique_ptr<Vtb_sid_player>& top,
+               const std::unique_ptr<Vtb_tt6581_player>& top,
                uint8_t addr, uint8_t data) {
     uint16_t frame = (addr << 8) | data;
     frame = 0x8000 | frame;
@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     Verilated::mkdir("logs");
     const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
     contextp->commandArgs(argc, argv);
-    const std::unique_ptr<Vtb_sid_player> top{new Vtb_sid_player{contextp.get(), "TOP"}};
+    const std::unique_ptr<Vtb_tt6581_player> top{new Vtb_tt6581_player{contextp.get(), "TOP"}};
 
     std::string stim_path = "stimulus/Hubbard_Rob_Monty_on_the_Run_tt6581_stimulus.txt";
     for (int i = 1; i < argc; i++) {
