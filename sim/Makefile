@@ -15,18 +15,19 @@ VERILATOR_FLAGS += -Wall
 VERILATOR_FLAGS += --assert -Wno-EOFNEWLINE
 
 # Simulation targets
-TARGETS = mult spi multi_voice envelope svf delta_sigma tt6581 sid_player
+TARGETS = mult spi multi_voice envelope svf delta_sigma tt6581 tt6581_player tt6581_bode
 
 # Module source dependencies
 SRCS_sine   	= ../src/sine.sv
 SRCS_mult   	= ../src/mult.sv
 SRCS_spi		= ../src/spi.sv
 SRCS_voice		= ../src/voice.sv
-SRCS_tt6581		= ../src/tt6581.sv ../src/multi_voice.sv ../src/spi.sv ../src/reg_file.sv ../src/controller.sv ../src/tick_gen.sv ../src/envelope.sv ../src/mult.sv ../src/svf.sv ../src/delta_sigma.sv
 SRCS_envelope	= ../src/envelope.sv ../src/mult.sv
 SRCS_svf		= ../src/svf.sv ../src/mult.sv
-SRCS_sid_player	= ../src/tt6581.sv ../src/multi_voice.sv ../src/spi.sv ../src/reg_file.sv ../src/controller.sv ../src/tick_gen.sv ../src/envelope.sv ../src/mult.sv ../src/svf.sv ../src/delta_sigma.sv
 SRCS_delta_sigma = ../src/delta_sigma.sv
+SRCS_tt6581		= ../src/tt6581.sv ../src/multi_voice.sv ../src/spi.sv ../src/reg_file.sv ../src/controller.sv ../src/tick_gen.sv ../src/envelope.sv ../src/mult.sv ../src/svf.sv ../src/delta_sigma.sv
+SRCS_tt6581_player	= ../src/tt6581.sv ../src/multi_voice.sv ../src/spi.sv ../src/reg_file.sv ../src/controller.sv ../src/tick_gen.sv ../src/envelope.sv ../src/mult.sv ../src/svf.sv ../src/delta_sigma.sv
+SRCS_tt6581_bode	= ../src/tt6581.sv ../src/multi_voice.sv ../src/spi.sv ../src/reg_file.sv ../src/controller.sv ../src/tick_gen.sv ../src/envelope.sv ../src/mult.sv ../src/svf.sv ../src/delta_sigma.sv
 
 ######################################################################
 default: help
@@ -91,10 +92,16 @@ $(filter-out core,$(TARGETS)): %:
 		cd scripts && uv run bin_to_wav.py; \
 	fi
 
-	@if [ "$@" = "sid_player" ]; then \
+	@if [ "$@" = "tt6581_player" ]; then \
 		echo; \
 		echo "-- PLOT $@ --------------------"; \
 		cd scripts && uv run bin_to_wav.py; \
+	fi
+
+	@if [ "$@" = "tt6581_bode" ]; then \
+		echo; \
+		echo "-- PLOT $@ --------------------"; \
+		cd scripts && uv run bode.py; \
 	fi
 
 all: $(TARGETS)
