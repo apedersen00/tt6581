@@ -1,9 +1,10 @@
 //-------------------------------------------------------------------------------------------------
 //
 //  File: tb_spi.sv
+//  Description: Wrapper for Verilator testbench.
 //
 //  Author:
-//      - A. Pedersen
+//      - Andreas Pedersen
 //
 //-------------------------------------------------------------------------------------------------
 
@@ -16,24 +17,15 @@ module tb_spi (
   input   logic       mosi_i,     // SPI MOSI
   output  logic       miso_o,     // SPI MISO
 
-  input   logic [7:0] reg_data_i,
-  output  logic [7:0] reg_data_o,
+  input   logic [7:0] reg_rdata_i,
+  output  logic [7:0] reg_wdata_o,
   output  logic [6:0] reg_addr_o,
   output  logic       reg_we_o
 );
 
     // DUT instance
   spi spi_inst (
-    .clk_i        ( clk_i       ),
-    .rst_ni       ( rst_ni      ),
-    .sclk_i       ( sclk_i      ),
-    .cs_i         ( cs_i        ),
-    .mosi_i       ( mosi_i      ),
-    .miso_o       ( miso_o      ),
-    .reg_rdata_i  ( reg_data_i   ),
-    .reg_wdata_o  ( reg_data_o   ),
-    .reg_addr_o   ( reg_addr_o  ),
-    .reg_we_o     ( reg_we_o    )
+    .*
   );
 
     // Stimulus

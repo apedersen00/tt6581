@@ -1,7 +1,11 @@
 //-------------------------------------------------------------------------------------------------
 //
 //  File: sim_spi.cpp
-//  Description:
+//  Description: Verilator testbench for register SPI interface.
+//               Reads and writes test values and checks the reg_file interface.
+//
+//  Author:
+//    - Andreas Pedersen
 //
 //-------------------------------------------------------------------------------------------------
 
@@ -89,11 +93,11 @@ void check_write(const std::unique_ptr<VerilatedContext>& ctx,
         tick(ctx, top);
     }
     
-    if (top->reg_addr_o == addr && top->reg_data_o == data) { // && top->reg_we_o
+    if (top->reg_addr_o == addr && top->reg_wdata_o == data) {
         std::cout << "PASS" << std::endl;
     } else {
         std::cout << "FAIL (Got Addr: " << (int)top->reg_addr_o 
-                  << " Data: " << (int)top->reg_data_o << ")" << std::endl;
+                  << " Data: " << (int)top->reg_wdata_o << ")" << std::endl;
     }
 }
 
@@ -103,7 +107,7 @@ void check_read(const std::unique_ptr<VerilatedContext>& ctx,
     
     std::cout << "[Read ] Addr: 0x" << std::hex << (int)addr << std::dec << " ... ";
 
-    top->reg_data_i = expected_val;
+    top->reg_rdata_i = expected_val;
     top->cs_i = 0;
 
     uint8_t cmd = 0x00 | (addr & 0x7F);
@@ -128,12 +132,12 @@ void check_read(const std::unique_ptr<VerilatedContext>& ctx,
 }
 
 int main(int argc, char** argv) {
+    // Verilator init
     Verilated::mkdir("logs");
     const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
     contextp->debug(0);
     contextp->traceEverOn(true);
     contextp->commandArgs(argc, argv);
-
     const std::unique_ptr<Vtb_spi> top{new Vtb_spi{contextp.get(), "TOP"}};
 
     // Reset
@@ -142,15 +146,16 @@ int main(int argc, char** argv) {
     top->sclk_i     = 0;
     top->cs_i       = 1;
     top->mosi_i     = 0;
-    top->reg_data_i = 0;
+    top->reg_rdata_i = 0;
 
-    std::cout << "[TB] Starting..." << std::endl;
+    std::cout << "[TB] Starting SPI testbench..." << std::endl;
 
-    for (int i = 0; i < 10; i++) {
+    // Tick a few cycles before releasing reset
+    for (int i = 0; i < 5; i++) {
         tick(contextp, top);
     }
     top->rst_ni = 1;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 5; i++) {
         tick(contextp, top);
     }
 
