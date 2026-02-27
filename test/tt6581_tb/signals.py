@@ -3,7 +3,7 @@ PDM audio capture.
 """
 
 import numpy as np
-from scipy.signal import butter, sosfilt
+from scipy.signal import butter, bessel, sosfilt
 from cocotb.triggers import ClockCycles
 
 from .constants import (
@@ -50,7 +50,7 @@ async def capture_audio(dut, num_samples: int = 500,
 
     pdm_bits = pdm_bits * 2.0 - 1.0
 
-    sos = butter(FILT_ORDER, FILT_CUTOFF, btype='low', fs=PDM_RATE, output='sos')
+    sos = bessel(FILT_ORDER, FILT_CUTOFF, btype='low', fs=PDM_RATE, output='sos')
     filtered = sosfilt(sos, pdm_bits)
 
     # Downsample: PDM_RATE -> SAMPLE_RATE
