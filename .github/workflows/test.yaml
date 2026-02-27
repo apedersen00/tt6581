@@ -64,6 +64,8 @@ jobs:
 
       - name: Generate test summary with plots
         if: always()
+        env:
+          ARTIFACT_BRANCH: test-artifacts
         run: python test/gen_summary.py
 
       - name: upload waveform and test results

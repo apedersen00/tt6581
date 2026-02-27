@@ -39,13 +39,12 @@ def img_tag(path: str, alt: str = "", width: int = 600) -> str:
         return f"*Plot not found: `{os.path.basename(path)}`*"
     
     filename = os.path.basename(path)
-    # Grab the repo and run ID from the GitHub Actions environment
     repo = os.environ.get("GITHUB_REPOSITORY", "user/repo")
     run_id = os.environ.get("GITHUB_RUN_ID", "1")
     
-    # Construct the raw URL pointing to the test-artifacts branch
-    # The ?v= query string busts GitHub's cache so it always loads the newest image
-    url = f"https://raw.githubusercontent.com/{repo}/test-artifacts/tmp/{filename}?v={run_id}"
+    branch = os.environ.get("ARTIFACT_BRANCH", "test-artifacts")
+
+    url = f"https://raw.githubusercontent.com/{repo}/{branch}/tmp/{filename}?v={run_id}"
     
     return f'<img src="{url}" alt="{alt}" width="{width}">'
 

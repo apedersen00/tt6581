@@ -44,11 +44,6 @@ jobs:
         if: always()
         run: pip install matplotlib numpy
 
-      - name: Generate summary
-        if: always()
-        working-directory: test
-        run: python gen_summary.py
-
       - name: Push plots to artifact branch
         if: always()
         run: |
@@ -58,14 +53,21 @@ jobs:
           mkdir -p plots_deploy
           cd plots_deploy
           git init
-          git checkout --orphan test-artifacts
+          git checkout --orphan gl-test-artifacts
 
           mkdir -p tmp
           cp ../test/tmp/*.png ./tmp/ || true
 
           git add tmp/
           git commit -m "Update test plots for run ${{ github.run_id }} [skip ci]" || true
-          git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git test-artifacts
+          git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gl-test-artifacts
+
+      - name: Generate summary
+        if: always()
+        working-directory: test
+        env:
+          ARTIFACT_BRANCH: gl-test-artifacts
+        run: python gen_summary.py
 
       - name: Upload test plots
         if: always()
