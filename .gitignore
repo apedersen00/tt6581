@@ -13,5 +13,5 @@ test/results.xml
 test/gate_level_netlist.v
 
 # TB
-tmp/
+test/tmp/
 __pycache__
