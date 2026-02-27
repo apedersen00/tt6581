@@ -4,11 +4,17 @@ import argparse
 import base64
 import io
 import os
+import sys
 import xml.etree.ElementTree as ET
-from PIL import Image
 
-RESULTS_XML = os.path.join(os.path.dirname(__file__), "results.xml")
-PLOT_DIR = os.path.join(os.path.dirname(__file__), "tmp")
+try:
+    from PIL import Image
+    _HAS_PIL = True
+except ImportError:
+    _HAS_PIL = False
+
+RESULTS_XML = os.path.join(os.path.dirname(__file__) or ".", "results.xml")
+PLOT_DIR = os.path.join(os.path.dirname(__file__) or ".", "tmp")
 
 # GitHub step summary hard limit is 1024 kB.  Leave headroom for the
 # Markdown text around the images.
@@ -17,7 +23,7 @@ TEXT_HEADROOM_KB = 24
 MAX_IMAGE_BUDGET = (MAX_SUMMARY_KB - TEXT_HEADROOM_KB) * 1024  # bytes (base64)
 
 # Target pixel width when down-scaling plots for the summary.
-RESIZE_WIDTH = 720
+RESIZE_WIDTH = 600
 
 
 def parse_results(xml_path: str) -> list[dict]:
@@ -42,23 +48,46 @@ def parse_results(xml_path: str) -> list[dict]:
 
 
 def _compress_png(path: str) -> bytes:
+    """Resize and re-encode a PNG for the step summary.
+
+    Falls back to the raw file bytes if Pillow is unavailable.
+    """
+    if not _HAS_PIL:
+        with open(path, "rb") as f:
+            return f.read()
+
     img = Image.open(path)
+
+    # Pillow >= 10 moved resampling constants to Image.Resampling
+    lanczos = getattr(Image, "Resampling", Image).LANCZOS
 
     # Down-scale if wider than target
     if img.width > RESIZE_WIDTH:
         ratio = RESIZE_WIDTH / img.width
         new_size = (RESIZE_WIDTH, int(img.height * ratio))
-        img = img.resize(new_size, Image.LANCZOS)
+        img = img.resize(new_size, lanczos)
+
+    # Drop alpha channel — not needed for plots, saves bytes
+    if img.mode in ("RGBA", "LA", "PA"):
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        bg.paste(img, mask=img.split()[-1])
+        img = bg
+    elif img.mode != "RGB":
+        img = img.convert("RGB")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
 
 
-def img_tag(path: str, alt: str = "", width: int = 720) -> str:
+def img_tag(path: str, alt: str = "", width: int = 600) -> str:
     if not os.path.isfile(path):
         return f"*Plot not found: `{os.path.basename(path)}`*"
-    png_bytes = _compress_png(path)
+    try:
+        png_bytes = _compress_png(path)
+    except Exception as exc:
+        print(f"Warning: failed to process {path}: {exc}", file=sys.stderr)
+        return f"*Could not process image: `{os.path.basename(path)}`*"
     data = base64.b64encode(png_bytes).decode()
     return f'<img src="data:image/png;base64,{data}" alt="{alt}" width="{width}">'
 

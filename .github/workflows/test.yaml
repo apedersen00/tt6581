@@ -32,7 +32,7 @@ jobs:
         run: |
           cd test
           make clean
-          make
+          SIM=verilator make
           # make will return success even if the test fails, so check for failure in the results.xml
           ! grep failure results.xml
 
