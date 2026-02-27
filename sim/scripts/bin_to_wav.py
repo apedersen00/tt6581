@@ -2,10 +2,6 @@
 Converts binary PDM data to audio file.
 """
 
-"""
-Parses envelope testbench output.
-"""
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,33 +16,43 @@ FILT_ORDER  = 4           # Filter order
 FILT_CUTOFF = 20_000      # Low-pass cutoff
 
 def main():
-    raw = np.fromfile(PDM_FILE, dtype=np.uint8)
-    pdm = np.unpackbits(raw).astype(np.float32)
-
-    duration = len(pdm) / PDM_RATE
-    print(f"PDM samples: {len(pdm):,} ({duration:.2f}s at {PDM_RATE/1e6:.0f} MHz)")
-
-    pdm = pdm * 2.0 - 1.0
+    file_size = os.path.getsize(PDM_FILE)
+    total_pdm = file_size * 8  # each byte -> 8 bits
+    duration = total_pdm / PDM_RATE
+    print(f"PDM samples: {total_pdm:,} ({duration:.2f}s at {PDM_RATE/1e6:.0f} MHz)")
 
     sos = bessel(FILT_ORDER, FILT_CUTOFF, btype='low', fs=PDM_RATE, output='sos')
-
-    # Apply filter in chunks
-    CHUNK = 10_000_000
-    zi = np.zeros((sos.shape[0], 2), dtype=np.float64)
-    filtered_chunks = []
-
-    for start in range(0, len(pdm), CHUNK):
-        end = min(start + CHUNK, len(pdm))
-        chunk_out, zi = sosfilt(sos, pdm[start:end], zi=zi)
-        filtered_chunks.append(chunk_out)
-        print(f"Filtered {end:,} / {len(pdm):,} samples...", end='\r')
-
-    filtered = np.concatenate(filtered_chunks)
-    print()
-
-    # Downsample: 10 MHz -> 50 kHz
     decimation = PDM_RATE // TARGET_RATE
-    audio = filtered[::decimation]
+
+    # Process in streaming chunks: read raw bytes, unpack, filter, decimate.
+    CHUNK_BYTES = 1_250_000  # 1.25 MB raw -> 10M PDM samples per chunk
+    zi = np.zeros((sos.shape[0], 2), dtype=np.float64)
+    audio_chunks = []
+    phase = 0  # decimation phase carried across chunks
+
+    samples_done = 0
+    with open(PDM_FILE, 'rb') as f:
+        while True:
+            raw = np.frombuffer(f.read(CHUNK_BYTES), dtype=np.uint8)
+            if len(raw) == 0:
+                break
+            pdm = np.unpackbits(raw).astype(np.float32)
+            pdm = pdm * 2.0 - 1.0
+            filtered, zi = sosfilt(sos, pdm, zi=zi)
+
+            # Decimate with correct phase alignment across chunks
+            decimated = filtered[phase::decimation]
+            if len(decimated) > 0:
+                audio_chunks.append(decimated.astype(np.float32))
+            phase = (phase + len(filtered)) % decimation  # carry remainder
+
+            samples_done += len(pdm)
+            print(f"Processed {samples_done:,} / {total_pdm:,} samples...", end='\r')
+
+            del raw, pdm, filtered  # free intermediates immediately
+
+    print()
+    audio = np.concatenate(audio_chunks)
     print(f"Downsampled ÷{decimation}: {len(audio):,} samples at {TARGET_RATE/1e3:.0f} kHz")
 
     # Normalize to [-1, 1]
