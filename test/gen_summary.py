@@ -1,29 +1,16 @@
 #!/usr/bin/env python3
 
-import argparse
-import base64
-import io
-import os
-import sys
-import xml.etree.ElementTree as ET
+"""Generate a Markdown test summary with inline plots for GitHub Actions."""
 
-try:
-    from PIL import Image
-    _HAS_PIL = True
-except ImportError:
-    _HAS_PIL = False
+import argparse
+import os
+import xml.etree.ElementTree as ET
 
 RESULTS_XML = os.path.join(os.path.dirname(__file__) or ".", "results.xml")
 PLOT_DIR = os.path.join(os.path.dirname(__file__) or ".", "tmp")
 
-# GitHub step summary hard limit is 1024 kB.  Leave headroom for the
-# Markdown text around the images.
+# GitHub step summary hard limit is 1024 kB.
 MAX_SUMMARY_KB = 1024
-TEXT_HEADROOM_KB = 24
-MAX_IMAGE_BUDGET = (MAX_SUMMARY_KB - TEXT_HEADROOM_KB) * 1024  # bytes (base64)
-
-# Target pixel width when down-scaling plots for the summary.
-RESIZE_WIDTH = 600
 
 
 def parse_results(xml_path: str) -> list[dict]:
@@ -47,49 +34,20 @@ def parse_results(xml_path: str) -> list[dict]:
     return cases
 
 
-def _compress_png(path: str) -> bytes:
-    """Resize and re-encode a PNG for the step summary.
-
-    Falls back to the raw file bytes if Pillow is unavailable.
-    """
-    if not _HAS_PIL:
-        with open(path, "rb") as f:
-            return f.read()
-
-    img = Image.open(path)
-
-    # Pillow >= 10 moved resampling constants to Image.Resampling
-    lanczos = getattr(Image, "Resampling", Image).LANCZOS
-
-    # Down-scale if wider than target
-    if img.width > RESIZE_WIDTH:
-        ratio = RESIZE_WIDTH / img.width
-        new_size = (RESIZE_WIDTH, int(img.height * ratio))
-        img = img.resize(new_size, lanczos)
-
-    # Drop alpha channel — not needed for plots, saves bytes
-    if img.mode in ("RGBA", "LA", "PA"):
-        bg = Image.new("RGB", img.size, (255, 255, 255))
-        bg.paste(img, mask=img.split()[-1])
-        img = bg
-    elif img.mode != "RGB":
-        img = img.convert("RGB")
-
-    buf = io.BytesIO()
-    img.save(buf, format="PNG", optimize=True)
-    return buf.getvalue()
-
-
 def img_tag(path: str, alt: str = "", width: int = 600) -> str:
     if not os.path.isfile(path):
         return f"*Plot not found: `{os.path.basename(path)}`*"
-    try:
-        png_bytes = _compress_png(path)
-    except Exception as exc:
-        print(f"Warning: failed to process {path}: {exc}", file=sys.stderr)
-        return f"*Could not process image: `{os.path.basename(path)}`*"
-    data = base64.b64encode(png_bytes).decode()
-    return f'<img src="data:image/png;base64,{data}" alt="{alt}" width="{width}">'
+    
+    filename = os.path.basename(path)
+    # Grab the repo and run ID from the GitHub Actions environment
+    repo = os.environ.get("GITHUB_REPOSITORY", "user/repo")
+    run_id = os.environ.get("GITHUB_RUN_ID", "1")
+    
+    # Construct the raw URL pointing to the test-artifacts branch
+    # The ?v= query string busts GitHub's cache so it always loads the newest image
+    url = f"https://raw.githubusercontent.com/{repo}/test-artifacts/tmp/{filename}?v={run_id}"
+    
+    return f'<img src="{url}" alt="{alt}" width="{width}">'
 
 
 def generate_markdown() -> str:
@@ -159,7 +117,7 @@ def generate_markdown() -> str:
     lines.append('')
 
     path = os.path.join(PLOT_DIR, 'env_A4_D4_S10_R4.png')
-    lines.append(img_tag(path, alt='envelope test 0'))
+    lines.append(img_tag(path, alt='envelope test 1'))
     lines.append('')
 
     #==================================
@@ -186,27 +144,6 @@ def generate_markdown() -> str:
 
     return "\n".join(lines)
 
-
-def _truncate_to_budget(md: str) -> str:
-    """If the summary exceeds the GitHub step summary limit, drop images
-    from the bottom until it fits."""
-    limit = MAX_SUMMARY_KB * 1024
-    if len(md.encode()) <= limit:
-        return md
-
-    lines = md.split("\n")
-    # Walk backwards, dropping <img …> lines until under budget
-    while len("\n".join(lines).encode()) > limit and lines:
-        for i in range(len(lines) - 1, -1, -1):
-            if lines[i].strip().startswith("<img "):
-                lines[i] = "*Image omitted to fit GitHub summary size limit.*"
-                break
-        else:
-            break  # no more images to drop
-
-    return "\n".join(lines)
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -216,21 +153,18 @@ def main():
     args = parser.parse_args()
 
     md = generate_markdown()
-    md = _truncate_to_budget(md)
 
     if args.output:
         with open(args.output, "w") as f:
             f.write(md)
-        size_kb = len(md.encode()) / 1024
-        print(f"Summary written to {args.output} ({size_kb:.0f} kB)")
+        print(f"Summary written to {args.output}")
         return
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a") as f:
             f.write(md)
-        size_kb = len(md.encode()) / 1024
-        print(f"Summary written to $GITHUB_STEP_SUMMARY ({size_kb:.0f} kB)")
+        print(f"Summary written to $GITHUB_STEP_SUMMARY")
     else:
         print(md)
 

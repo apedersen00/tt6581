@@ -3,6 +3,8 @@ on: [push, workflow_dispatch]
 jobs:
   test:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -41,6 +43,24 @@ jobs:
         with:
           paths: "test/results.xml"
         if: always()
+      
+      - name: Push plots to artifact branch
+        if: always()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          mkdir -p plots_deploy
+          cd plots_deploy
+          git init
+          git checkout --orphan test-artifacts
+
+          mkdir -p tmp
+          cp ../test/tmp/*.png ./tmp/ || true
+
+          git add tmp/
+          git commit -m "Update test plots for run ${{ github.run_id }} [skip ci]" || true
+          git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git test-artifacts
 
       - name: Generate test summary with plots
         if: always()

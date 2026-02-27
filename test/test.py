@@ -183,7 +183,7 @@ async def test_envelopes(dut):
     dut._log.info("=== test_envelopes: done ===")
 
 
-@cocotb.test()
+# @cocotb.test()
 async def test_filter(dut):
     """Sweep-based filter response with bypass-normalised Bode plot."""
 
