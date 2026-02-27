@@ -1,9 +1,10 @@
 //-------------------------------------------------------------------------------------------------
 //
 //  File: tb_envelope.sv
+//  Description: Wrapper for Verilator testbench.
 //
 //  Author:
-//      - A. Pedersen
+//      - Andreas Pedersen
 //
 //-------------------------------------------------------------------------------------------------
 
@@ -30,7 +31,6 @@ module tb_envelope (
   logic         mult_start;
   logic [23:0]  op_a;
   logic [15:0]  op_b;
-  logic [39:0]  prod;
   logic [7:0]   env_raw;
 
   assign op_a = {{14{voice_i[9]}}, voice_i};

@@ -11,7 +11,7 @@ endif
 VERILATOR_FLAGS += -cc --exe
 VERILATOR_FLAGS += -x-assign fast
 VERILATOR_FLAGS += -Wall
-VERILATOR_FLAGS += --trace
+# VERILATOR_FLAGS += --trace
 VERILATOR_FLAGS += --assert -Wno-EOFNEWLINE
 
 # Simulation targets
@@ -72,6 +72,12 @@ $(filter-out core,$(TARGETS)): %:
 	@echo "-- DONE $@ --------------------"
 	@echo "To see waveforms, open logs/tb_$@.vcd in a waveform viewer"
 	@echo
+
+	@if [ "$@" = "envelope" ]; then \
+		echo; \
+		echo "-- PLOT $@ --------------------"; \
+		cd scripts && uv run envelope.py; \
+	fi
 
 all: $(TARGETS)
 
