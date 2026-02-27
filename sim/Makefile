@@ -91,6 +91,12 @@ $(filter-out core,$(TARGETS)): %:
 		cd scripts && uv run bin_to_wav.py; \
 	fi
 
+	@if [ "$@" = "sid_player" ]; then \
+		echo; \
+		echo "-- PLOT $@ --------------------"; \
+		cd scripts && uv run bin_to_wav.py; \
+	fi
+
 all: $(TARGETS)
 
 help:
