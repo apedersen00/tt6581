@@ -1,19 +1,24 @@
 //-------------------------------------------------------------------------------------------------
-// File: sim_svf.cpp
-// Description: Verilator testbench for sequential SVF filter with shared multiplier
+//
+//  File: sim_svf.cpp
+//  Description: Verilator testbench for Chamberlin State-Variable filter.
+//               Inputs a sine sweep and logs output for all 4 filter modes.
+//
+//  Author:
+//    - Andreas Pedersen
+//
 //-------------------------------------------------------------------------------------------------
 
 #include <memory>
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <vector>
 #include <string>
 #include <cmath>
 #include <verilated.h>
 #include "Vtb_svf.h"
 
-const double Fs = 50000.0;          // Sample Rate
+const double Fs = 50000.0;
 
 void tick(const std::unique_ptr<VerilatedContext>& ctx,
           const std::unique_ptr<Vtb_svf>& top) {
@@ -51,77 +56,100 @@ void run_sample(const std::unique_ptr<VerilatedContext>& ctx,
         cycles++;
     }
 
-    // One extra tick to latch outputs if needed
     tick(ctx, top);
 }
 
+struct FilterMode {
+    std::string name;
+    int mode_bits;
+    std::string filename;
+};
+
 int main(int argc, char** argv) {
+    // Verilator init
     Verilated::mkdir("logs");
     const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
+    contextp->debug(0);
+    contextp->traceEverOn(false);
     contextp->commandArgs(argc, argv);
     const std::unique_ptr<Vtb_svf> top{new Vtb_svf{contextp.get(), "TOP"}};
 
-    // 1. Open Input CSV
-    std::ifstream input_file("../data/10s_nocturne.csv");
-    if (!input_file.is_open()) {
-        std::cerr << "Error: Could not open input.csv" << std::endl;
-        return 1;
-    }
+    // Configure Filter Params
+    double fc = 1000.0;
+    double q  = 0.707;
+    top->clk_i     = 0;
+    top->start_i   = 0;
+    top->coeff_f_i = get_coeff_f(fc);
+    top->coeff_q_i = get_coeff_q(q);
 
-    std::ofstream output_file("svf_out.csv");
-    output_file << "time_sec,output_val\n"; 
+    // Sweep Parameters
+    double duration_sec = 2.0;
+    int total_samples = duration_sec * Fs;
+    double start_freq = 20.0;
+    double end_freq = 20000.0;
+    double amplitude = 8191.0;
 
-    // 3. Configure Filter
-    double fc = 3000.0;      // Cutoff: 2 kHz
-    double q  = 0.707;       // Butterworth
-    int mode  = 0b001;       // 001: LP, 010: BP, 100: HP
+    std::vector<FilterMode> test_modes = {
+        {"Lowpass",    0b001, "tmp/svf_out_lp.csv"},
+        {"Bandpass",   0b010, "tmp/svf_out_bp.csv"},
+        {"Highpass",   0b100, "tmp/svf_out_hp.csv"},
+        {"Bandreject", 0b101, "tmp/svf_out_br.csv"}
+    };
 
-    top->clk_i      = 0;
-    top->rst_ni     = 0;
-    top->start_i    = 0;
-    top->filt_sel_i = mode; 
-    top->coeff_f_i  = get_coeff_f(fc);
-    top->coeff_q_i  = get_coeff_q(q);
+    std::cout << "[TB] Starting SVF testbench..." << std::endl;
+    std::cout << "Cutoff: " << fc << " Hz, Q: " << q << std::endl;
+    std::cout << "Sweep:  " << start_freq << "Hz to " << end_freq << "Hz over " << duration_sec << "s\n" << std::endl;
 
-    // Reset sequence
-    for (int i = 0; i < 10; i++) tick(contextp, top);
-    top->rst_ni = 1;
-    tick(contextp, top);
+    for (const auto& mode : test_modes) {
+        std::cout << "[TB] Executing " << mode.name << " sweep..." << std::endl;
 
-    std::cout << "[Sim] Processing CSV data..." << std::endl;
-    std::cout << "      Cutoff: " << fc << " Hz, Q: " << q << std::endl;
+        // Open CSV for this specific mode
+        std::ofstream output_file(mode.filename);
+        if (!output_file.is_open()) {
+            std::cerr << "Error: Could not open " << mode.filename << std::endl;
+            return 1;
+        }
+        output_file << "time_sec,in_val,out_val,freq_hz\n";
 
-    std::string line;
-    std::getline(input_file, line); 
-
-    int sample_count = 0;
-
-    // 4. Processing Loop
-    while (std::getline(input_file, line)) {
-        std::stringstream ss(line);
-        std::string txt_time, txt_val;
+        // Reset
+        top->rst_ni = 0;
+        top->filt_sel_i = mode.mode_bits;
+        for (int i = 0; i < 5; i++) tick(contextp, top);
         
-        if (std::getline(ss, txt_time, ',') && std::getline(ss, txt_val, ',')) {
-            double t_sec = std::stod(txt_time);
-            double in_raw = std::stod(txt_val);
+        top->rst_ni = 1;
+        for (int i = 0; i < 5; i++) tick(contextp, top);
 
-            int16_t svf_input = (int16_t)((in_raw - 512.0) * 16.0);
 
-            top->wave_i = svf_input;
+        double phase = 0.0;
+
+        // Sweep
+        for (int i = 0; i < total_samples; i++) {
+            double t_sec = (double)i / Fs;
+
+            double current_freq = start_freq * std::pow(end_freq / start_freq, t_sec / duration_sec);
+
+            phase += 2.0 * M_PI * current_freq / Fs;
+            if (phase > 2.0 * M_PI) {
+                phase -= 2.0 * M_PI;
+            }
+
+            double in_val_raw = std::sin(phase) * amplitude;
+            int16_t svf_input = (int16_t)in_val_raw;
+
+            top->wave_i = svf_input & 0x3FFF;
 
             run_sample(contextp, top);
 
-            output_file << t_sec << "," << (int)top->wave_o << "\n";
-            
-            sample_count++;
+            int16_t out_val = (int16_t)(top->wave_o << 2) >> 2;
+
+            output_file << t_sec << "," << svf_input << "," << out_val << "," << current_freq << "\n";
         }
+
+        output_file.close();
+        std::cout << "[TB] Saved to " << mode.filename << "\n" << std::endl;
     }
 
-    std::cout << "[Sim] Done! Processed " << sample_count << " samples." << std::endl;
-    std::cout << "[Sim] Output saved to 'output.csv'" << std::endl;
-
-    input_file.close();
-    output_file.close();
+    std::cout << "[TB] All simulations finished." << std::endl;
     top->final();
     return 0;
 }

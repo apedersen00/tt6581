@@ -46,7 +46,7 @@ module svf (
   output  logic               mult_start_o,
 
   output  logic               ready_o,
-  output  logic signed [13:0] wave_o        // Unsigned filtered output
+  output  logic signed [13:0] wave_o        // filtered output
 );
 
   /************************************

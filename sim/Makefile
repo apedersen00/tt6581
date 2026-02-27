@@ -79,6 +79,12 @@ $(filter-out core,$(TARGETS)): %:
 		cd scripts && uv run envelope.py; \
 	fi
 
+	@if [ "$@" = "svf" ]; then \
+		echo; \
+		echo "-- PLOT $@ --------------------"; \
+		cd scripts && uv run svf.py; \
+	fi
+
 all: $(TARGETS)
 
 help:
