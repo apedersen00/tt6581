@@ -85,6 +85,12 @@ $(filter-out core,$(TARGETS)): %:
 		cd scripts && uv run svf.py; \
 	fi
 
+	@if [ "$@" = "tt6581" ]; then \
+		echo; \
+		echo "-- PLOT $@ --------------------"; \
+		cd scripts && uv run bin_to_wav.py; \
+	fi
+
 all: $(TARGETS)
 
 help:

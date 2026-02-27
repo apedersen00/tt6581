@@ -1,6 +1,12 @@
 //-------------------------------------------------------------------------------------------------
-// File: sim_tt6581.cpp
-// Description: Top-level testbench for TT6581 with SPI Master simulation and Audio Dump
+//
+//  File: sim_tt6581.cpp
+//  Description: Verilator testbench for TT6581.
+//               Plays a 10 second song utilizing most of the TT6581.
+//
+//  Author:
+//    - Andreas Pedersen
+//
 //-------------------------------------------------------------------------------------------------
 
 #include <memory>
@@ -15,7 +21,7 @@
 #define CLK_PERIOD_NS 20   // 50 MHz System Clock
 #define SPI_CLK_DIV   20   // SPI is 20x slower than SysClk (2.5 MHz)
 
-// PDM (Delta-Sigma) capture constants
+// PDM (Delta-Sigma)
 const int    CYCLES_PER_DAC = 5;         // 50 MHz / 10 MHz
 const int    PDM_RATE_HZ    = 10000000;  // 10 MHz DAC rate
 
@@ -27,10 +33,12 @@ static uint64_t g_pdm_total     = 0;
 static uint64_t g_tick_count    = 0;
 static bool     g_pdm_active    = false;
 
+// Voice base register addreses
 const uint8_t V1_BASE = 0x00;
 const uint8_t V2_BASE = 0x07;
 const uint8_t V3_BASE = 0x0E;
 
+// Voice register offsets
 const uint8_t REG_FREQ_LO = 0x00;
 const uint8_t REG_FREQ_HI = 0x01;
 const uint8_t REG_PW_LO   = 0x02;
@@ -39,7 +47,7 @@ const uint8_t REG_CTRL    = 0x04;
 const uint8_t REG_AD      = 0x05;
 const uint8_t REG_SR      = 0x06;
 
-// ─── Filter Registers (base 0x15) ───────────────────────────────────────────────
+// Filter registers
 const uint8_t FILT_BASE    = 0x15;
 const uint8_t REG_F_LO     = 0x00;
 const uint8_t REG_F_HI     = 0x01;
@@ -48,12 +56,12 @@ const uint8_t REG_Q_HI     = 0x03;
 const uint8_t REG_EN_MODE  = 0x04;
 const uint8_t REG_VOLUME   = 0x05;
 
-// Filter mode bits (EN_MODE[2:0])
+// Filter mode bits
 const uint8_t FILT_LP = 0x01;  // Low-pass
 const uint8_t FILT_BP = 0x02;  // Band-pass
 const uint8_t FILT_HP = 0x04;  // High-pass
 
-// Voice filter enable bits (EN_MODE[5:3])
+// Voice filter enable bits
 const uint8_t FILT_V1 = 0x08;  // bit 3
 const uint8_t FILT_V2 = 0x10;  // bit 4
 const uint8_t FILT_V3 = 0x20;  // bit 5;
@@ -82,6 +90,7 @@ void sys_tick(const std::unique_ptr<VerilatedContext>& ctx,
     g_tick_count++;
 }
 
+// Multi-tick
 void tick_batch(const std::unique_ptr<VerilatedContext>& ctx,
                 const std::unique_ptr<Vtb_tt6581>& top,
                 int ticks) {
@@ -183,12 +192,12 @@ void set_filter(const std::unique_ptr<VerilatedContext>& ctx,
     spi_write(ctx, top, FILT_BASE + REG_EN_MODE, en_mode);
 }
 
-// ─── Waveform Select Masks ──────────────────────────────────────────────────────
+// Waveform masks
 const uint8_t WAVE_TRI   = 0x10;
 const uint8_t WAVE_SAW   = 0x20;
 const uint8_t WAVE_PULSE = 0x40;
 
-// ─── Note Frequencies (Hz) ──────────────────────────────────────────────────────
+// Notes
 const double C2  = 65.41,  D2  = 73.42,  Eb2 = 77.78,  F2  = 87.31;
 const double G2  = 98.00,  Ab2 = 103.83, Bb2 = 116.54, B2  = 123.47;
 const double C3  = 130.81, D3  = 146.83, Eb3 = 155.56, F3  = 174.61;
@@ -197,7 +206,6 @@ const double C4  = 261.63, D4  = 293.66, Eb4 = 311.13, F4  = 349.23;
 const double G4  = 392.00, Ab4 = 415.30, Bb4 = 466.16, B4  = 493.88;
 const double C5  = 523.25, D5  = 587.33, Eb5 = 622.25, G5  = 783.99;
 
-// ─── Song Event System ──────────────────────────────────────────────────────────
 enum class EventType { GATE_ON, GATE_OFF, FREQ_ONLY };
 
 struct NoteEvent {
@@ -236,7 +244,7 @@ void add_arpeggio(std::vector<NoteEvent>& events,
                   double start_s, double end_s,
                   uint8_t voice, uint8_t wave,
                   double f1, double f2, double f3, int sr) {
-    const double step = 0.125; // sixteenth note at 120 BPM
+    const double step = 0.125;
     double freqs[] = {f1, f2, f3};
     // Initial gate on
     events.push_back({(uint64_t)(start_s * sr), voice, f1, wave, EventType::GATE_ON});
@@ -251,19 +259,16 @@ void add_arpeggio(std::vector<NoteEvent>& events,
     events.push_back({(uint64_t)((end_s - 0.02) * sr), voice, 0, wave, EventType::GATE_OFF});
 }
 
-// ─── Main ───────────────────────────────────────────────────────────────────────
 int main(int argc, char** argv) {
+    // Verilator init
     Verilated::mkdir("logs");
     const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
     contextp->commandArgs(argc, argv);
     contextp->traceEverOn(true);
     const std::unique_ptr<Vtb_tt6581> top{new Vtb_tt6581{contextp.get(), "TOP"}};
 
-    g_pdm_file.open("pdm_output.bin", std::ios::binary);
-    if (!g_pdm_file.is_open()) {
-        std::cerr << "Error: Could not open pdm_output.bin" << std::endl;
-        return 1;
-    }
+    // Store PDM output in binary file
+    g_pdm_file.open("tmp/pdm_out.bin", std::ios::binary);
 
     // Initial pin state
     top->clk_i  = 0;
@@ -282,12 +287,15 @@ int main(int argc, char** argv) {
     uint64_t max_samples   = DURATION * SAMPLE_RATE;
     uint64_t total_samples = 0;
 
-    // ── Reset sequence ──────────────────────────────────────────────────────────
-    for (int i = 0; i < 50; i++) sys_tick(contextp, top);
+    // Reset
+    for (int i = 0; i < 5; i++) {
+        sys_tick(contextp, top);
+    }
     top->rst_ni = 1;
-    for (int i = 0; i < 50; i++) sys_tick(contextp, top);
+    for (int i = 0; i < 5; i++) {
+        sys_tick(contextp, top);
+    }
 
-    // ── Voice Setup ─────────────────────────────────────────────────────────────
     // Voice 1: Lead (Pulse 25% duty cycle)
     spi_write(contextp, top, V1_BASE + REG_PW_LO, 0x00);
     spi_write(contextp, top, V1_BASE + REG_PW_HI, 0x04);  // PW = 0x400 = 25%
@@ -300,28 +308,20 @@ int main(int argc, char** argv) {
     set_adsr(contextp, top, V3_BASE, 0, 2, 15, 3);
 
     // Volume
-    spi_write(contextp, top, FILT_BASE + REG_VOLUME, 0x50);
+    spi_write(contextp, top, FILT_BASE + REG_VOLUME, 0xFF);
 
     // Initial filter: warm low-pass, all voices routed, Butterworth Q
     const uint8_t FILT_ALL_LP = FILT_V1 | FILT_V2 | FILT_V3 | FILT_LP;
-    set_filter(contextp, top, 600.0, 1.0, FILT_ALL_LP);
+    const uint8_t FILT_ALL_HP = FILT_V1 | FILT_V2 | FILT_V3 | FILT_HP;
+    set_filter(contextp, top, 600.0, 0.707, FILT_ALL_LP);
 
-    // ── Compose Song: "Nocturne in C Minor" ─────────────────────────────────────
-    //
-    //   Key: C minor    Tempo: 120 BPM    Time: 4/4
-    //   Progression: | Cm | Fm  G | Ab  Bb | Fm  G | Cm |
-    //
-    //   V1 = Lead melody (Pulse)   V2 = Bass (Saw)   V3 = Arp (Triangle)
-    //
     std::vector<NoteEvent> song;
 
-    // ── Voice 1: Lead Melody (Pulse wave) ───────────────────────────────────────
-    // Bar 1 (0.0-2.0s) Cm: rest then descending C minor motif
+    // Voice 1
     add_note(song, 1.00, V1_BASE, G4,  E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 1.25, V1_BASE, Eb4, E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 1.50, V1_BASE, C4,  Q, WAVE_PULSE, SAMPLE_RATE);
 
-    // Bar 2 (2.0-4.0s) Fm → G: ascending then descending
     add_note(song, 2.00, V1_BASE, F4,  E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 2.25, V1_BASE, Ab4, E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 2.50, V1_BASE, G4,  Q, WAVE_PULSE, SAMPLE_RATE);
@@ -329,7 +329,6 @@ int main(int argc, char** argv) {
     add_note(song, 3.25, V1_BASE, D4,  E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 3.50, V1_BASE, C4,  Q, WAVE_PULSE, SAMPLE_RATE);
 
-    // Bar 3 (4.0-6.0s) Ab → Bb: reaching higher
     add_note(song, 4.00, V1_BASE, Eb4, E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 4.25, V1_BASE, G4,  E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 4.50, V1_BASE, Ab4, Q, WAVE_PULSE, SAMPLE_RATE);
@@ -337,7 +336,6 @@ int main(int argc, char** argv) {
     add_note(song, 5.25, V1_BASE, Ab4, E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 5.50, V1_BASE, G4,  Q, WAVE_PULSE, SAMPLE_RATE);
 
-    // Bar 4 (6.0-8.0s) Fm → G: tension and approach
     add_note(song, 6.00, V1_BASE, F4,  E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 6.25, V1_BASE, Ab4, E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 6.50, V1_BASE, G4,  Q, WAVE_PULSE, SAMPLE_RATE);
@@ -345,122 +343,89 @@ int main(int argc, char** argv) {
     add_note(song, 7.25, V1_BASE, Eb4, E, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 7.50, V1_BASE, D4,  Q, WAVE_PULSE, SAMPLE_RATE);
 
-    // Bar 5 (8.0-10.0s) Cm: resolution
     add_note(song, 8.00, V1_BASE, C5,  H, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 9.00, V1_BASE, G4,  Q, WAVE_PULSE, SAMPLE_RATE);
     add_note(song, 9.50, V1_BASE, C4,  Q, WAVE_PULSE, SAMPLE_RATE, 0.15);
 
-    // ── Voice 2: Bass Line (Saw wave) ───────────────────────────────────────────
-    // Bar 1 (0.0-2.0s) Cm: root-fifth pump
+    // Voice 2
     add_note(song, 0.00, V2_BASE, C2,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 0.50, V2_BASE, G2,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 1.00, V2_BASE, C2,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 1.50, V2_BASE, G2,  Q, WAVE_SAW, SAMPLE_RATE);
 
-    // Bar 2 (2.0-4.0s) Fm → G
     add_note(song, 2.00, V2_BASE, F2,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 2.50, V2_BASE, C3,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 3.00, V2_BASE, G2,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 3.50, V2_BASE, D3,  Q, WAVE_SAW, SAMPLE_RATE);
 
-    // Bar 3 (4.0-6.0s) Ab → Bb
     add_note(song, 4.00, V2_BASE, Ab2, Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 4.50, V2_BASE, Eb3, Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 5.00, V2_BASE, Bb2, Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 5.50, V2_BASE, F3,  Q, WAVE_SAW, SAMPLE_RATE);
 
-    // Bar 4 (6.0-8.0s) Fm → G
     add_note(song, 6.00, V2_BASE, F2,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 6.50, V2_BASE, C3,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 7.00, V2_BASE, G2,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 7.50, V2_BASE, D3,  Q, WAVE_SAW, SAMPLE_RATE);
 
-    // Bar 5 (8.0-10.0s) Cm: sustained resolution
     add_note(song, 8.00, V2_BASE, C2,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 8.50, V2_BASE, G2,  Q, WAVE_SAW, SAMPLE_RATE);
     add_note(song, 9.00, V2_BASE, C3,  Q, WAVE_SAW, SAMPLE_RATE, 0.15);
 
-    // ── Voice 3: Arpeggiated Chords (Triangle wave) ─────────────────────────────
-    // Bar 1 (0.0-2.0s) Cm arpeggio
+    // Voice 3
     add_arpeggio(song, 0.0, 2.0, V3_BASE, WAVE_TRI, C4, Eb4, G4, SAMPLE_RATE);
 
-    // Bar 2 (2.0-4.0s) Fm → G
     add_arpeggio(song, 2.0, 3.0, V3_BASE, WAVE_TRI, F3, Ab3, C4, SAMPLE_RATE);
     add_arpeggio(song, 3.0, 4.0, V3_BASE, WAVE_TRI, G3, B3,  D4, SAMPLE_RATE);
 
-    // Bar 3 (4.0-6.0s) Ab → Bb
     add_arpeggio(song, 4.0, 5.0, V3_BASE, WAVE_TRI, Ab3, C4, Eb4, SAMPLE_RATE);
     add_arpeggio(song, 5.0, 6.0, V3_BASE, WAVE_TRI, Bb3, D4, F4,  SAMPLE_RATE);
 
-    // Bar 4 (6.0-8.0s) Fm → G
     add_arpeggio(song, 6.0, 7.0, V3_BASE, WAVE_TRI, F3, Ab3, C4, SAMPLE_RATE);
     add_arpeggio(song, 7.0, 8.0, V3_BASE, WAVE_TRI, G3, B3,  D4, SAMPLE_RATE);
 
-    // Bar 5 (8.0-10.0s) Cm resolution
     add_arpeggio(song, 8.0, 9.5, V3_BASE, WAVE_TRI, C4, Eb4, G4, SAMPLE_RATE);
 
-    // ── Filter Automation: Dynamic Sweeps ───────────────────────────────────────
-    //
-    //   Sweep the LP cutoff to follow the harmonic arc of the piece:
-    //     dark intro → bright climax → warm resolution
-    //
+    // Filter
     std::vector<FilterEvent> filter_song;
 
-    // Bar 1 (0-2s) Cm: dark, warm opening
+    // Low pass sweep in the beginning
     add_filter_event(filter_song, 0.00, 600.0,  1.0,   FILT_ALL_LP, SAMPLE_RATE);
     add_filter_event(filter_song, 0.50, 800.0,  1.0,   FILT_ALL_LP, SAMPLE_RATE);
     add_filter_event(filter_song, 1.00, 1200.0, 0.9,   FILT_ALL_LP, SAMPLE_RATE);
     add_filter_event(filter_song, 1.50, 1500.0, 0.8,   FILT_ALL_LP, SAMPLE_RATE);
 
-    // Bar 2 (2-4s) Fm → G: opening up
     add_filter_event(filter_song, 2.00, 2000.0, 1.0,   FILT_ALL_LP, SAMPLE_RATE);
     add_filter_event(filter_song, 2.50, 2200.0, 1.2,   FILT_ALL_LP, SAMPLE_RATE);
     add_filter_event(filter_song, 3.00, 2500.0, 1.5,   FILT_ALL_LP, SAMPLE_RATE);
     add_filter_event(filter_song, 3.50, 2800.0, 1.2,   FILT_ALL_LP, SAMPLE_RATE);
 
-    // Bar 3 (4-6s) Ab → Bb: climax — brightest, resonant
     add_filter_event(filter_song, 4.00, 3500.0, 2.0,   FILT_ALL_LP, SAMPLE_RATE);
     add_filter_event(filter_song, 4.50, 4000.0, 2.5,   FILT_ALL_LP, SAMPLE_RATE);
     add_filter_event(filter_song, 5.00, 5000.0, 2.0,   FILT_ALL_LP, SAMPLE_RATE);
-    add_filter_event(filter_song, 5.50, 4500.0, 1.5,   FILT_ALL_LP, SAMPLE_RATE);
+    add_filter_event(filter_song, 6.00, 8000.0, 1.2,   FILT_ALL_LP, SAMPLE_RATE);
 
-    // Bar 4 (6-8s) Fm → G: tension receding
-    add_filter_event(filter_song, 6.00, 3000.0, 1.2,   FILT_ALL_LP, SAMPLE_RATE);
-    add_filter_event(filter_song, 6.50, 2500.0, 1.0,   FILT_ALL_LP, SAMPLE_RATE);
-    add_filter_event(filter_song, 7.00, 2000.0, 0.9,   FILT_ALL_LP, SAMPLE_RATE);
-    add_filter_event(filter_song, 7.50, 1500.0, 0.8,   FILT_ALL_LP, SAMPLE_RATE);
+    // High pass end
+    add_filter_event(filter_song, 9.00, 100.0,   0.707, FILT_ALL_HP, SAMPLE_RATE);
+    add_filter_event(filter_song, 9.50, 4000.0, 1.5,   FILT_ALL_HP, SAMPLE_RATE);
 
-    // Bar 5 (8-10s) Cm: warm resolution, closing down
-    add_filter_event(filter_song, 8.00, 1200.0, 0.707, FILT_ALL_LP, SAMPLE_RATE);
-    add_filter_event(filter_song, 8.50, 1000.0, 0.707, FILT_ALL_LP, SAMPLE_RATE);
-    add_filter_event(filter_song, 9.00, 700.0,  0.707, FILT_ALL_LP, SAMPLE_RATE);
-    add_filter_event(filter_song, 9.50, 400.0,  0.707, FILT_ALL_LP, SAMPLE_RATE);
-
-    // Sort filter events by sample time
     std::sort(filter_song.begin(), filter_song.end(),
         [](const FilterEvent& a, const FilterEvent& b) { return a.sample < b.sample; });
 
-    // ── Sort events by sample time ──────────────────────────────────────────────
     std::sort(song.begin(), song.end(),
         [](const NoteEvent& a, const NoteEvent& b) { return a.sample < b.sample; });
 
-    std::cout << "=== Nocturne in C Minor ==="    << std::endl;
-    std::cout << "Key: Cm  Tempo: 120 BPM"       << std::endl;
-    std::cout << "V1: Pulse lead  V2: Saw bass  V3: Tri arp" << std::endl;
-    std::cout << "Filter: Dynamic LP sweep (600→5000→400 Hz)"  << std::endl;
-    std::cout << "Duration: " << DURATION << "s (" << max_samples << " samples)" << std::endl;
-    std::cout << "PDM output: 10 MHz, 1-bit, packed binary" << std::endl;
+    std::cout << "[TB] TT6581 Test Song" << std::endl;
+    std::cout << "[TB] Duration: " << DURATION << "s (" << max_samples << " samples)" << std::endl;
+    std::cout << "[TB] PDM output: 10 MHz, 1-bit, packed binary" << std::endl;
 
-    // ── Enable PDM capture ──────────────────────────────────────────────────────
     g_tick_count = 0;
     g_pdm_active = true;
 
-    // ── Main Sample Loop ────────────────────────────────────────────────────────
     size_t event_idx  = 0;
     size_t filt_idx   = 0;
 
     while (total_samples < max_samples) {
-        // Process all note events scheduled for this sample
         while (event_idx < song.size() && song[event_idx].sample <= total_samples) {
             auto& ev = song[event_idx];
             switch (ev.type) {
@@ -478,7 +443,6 @@ int main(int argc, char** argv) {
             event_idx++;
         }
 
-        // Process all filter events scheduled for this sample
         while (filt_idx < filter_song.size() && filter_song[filt_idx].sample <= total_samples) {
             auto& fe = filter_song[filt_idx];
             set_filter(contextp, top, fe.fc, fe.q, fe.en_mode);
@@ -489,12 +453,11 @@ int main(int argc, char** argv) {
         total_samples++;
 
         if (total_samples % SAMPLE_RATE == 0) {
-            std::cout << "Time: " << (total_samples / SAMPLE_RATE)
+            std::cout << "[TB] Time: " << (total_samples / SAMPLE_RATE)
                       << "s / " << (int)DURATION << "s" << std::endl;
         }
     }
 
-    // Flush remaining PDM bits (pad with zeros)
     if (g_pdm_bit_count > 0) {
         g_pdm_byte <<= (8 - g_pdm_bit_count);
         g_pdm_file.put(static_cast<char>(g_pdm_byte));
@@ -503,10 +466,8 @@ int main(int argc, char** argv) {
 
     top->final();
 
-    std::cout << "PDM samples captured: " << g_pdm_total
+    std::cout << "[TB] PDM samples captured: " << g_pdm_total
               << " (" << (double)g_pdm_total / PDM_RATE_HZ << "s at "
               << PDM_RATE_HZ / 1000000 << " MHz)" << std::endl;
-    std::cout << "Saved to pdm_output.bin ("
-              << (g_pdm_total + 7) / 8 << " bytes)" << std::endl;
     return 0;
 }
