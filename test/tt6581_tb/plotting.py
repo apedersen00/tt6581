@@ -1,8 +1,5 @@
-# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
-# SPDX-License-Identifier: Apache-2.0
-
 """
-Matplotlib plotting.
+Results plotting.
 """
 
 import os
@@ -82,23 +79,8 @@ def plot_envelope(samples, att, dec, sus, rel, gate_samps, filename: str = "audi
 def plot_audio_samples(samples, filename: str = "audio_i_plot.png",
                        title: str = "PDM Reconstructed Audio",
                        sample_rate: int = SAMPLE_RATE):
-    """Save a time-domain plot of captured audio samples as PNG.
-
-    X-axis is time in milliseconds.  Also writes a CSV.
-    """
-
-    # Time axis in ms
     t_ms = [i / sample_rate * 1000.0 for i in range(len(samples))]
 
-    # Write .csv
-    csv_path = os.path.join(TB_OUTPUT_DIR, filename.rsplit(".", 1)[0] + ".csv")
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["time_ms", "amplitude"])
-        for t, v in zip(t_ms, samples):
-            writer.writerow([f"{t:.6f}", f"{v:.6f}"])
-
-    # Plot
     plot_path = os.path.join(TB_OUTPUT_DIR, filename)
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.plot(t_ms, samples, linewidth=2.0, color='black')
@@ -117,37 +99,8 @@ def plot_frequencies(samples,
                      filename: str = "freq_plot.png",
                      title: str = "Frequency analysis",
                      sample_rate: int = SAMPLE_RATE):
-    """Plot waveform + FFT side-by-side, marking the 3 highest FFT peaks.
-
-    Parameters
-    ----------
-    samples : list[float]
-        Reconstructed audio samples.
-    expected_freqs : list[float]
-        The three expected fundamental frequencies (Hz).
-    filename : str
-        Output PNG filename (saved under TB_OUTPUT_DIR).
-    title : str
-        Super-title for the figure.
-    sample_rate : int
-        Sample rate used during capture.
-
-    Returns
-    -------
-    dict with ``detected_freqs`` (list of 3 peak frequencies in Hz) and
-    ``expected_freqs``.
-    """
-
     N = len(samples)
     t_ms = [i / sample_rate * 1000.0 for i in range(N)]
-
-    # Write CSV
-    csv_path = os.path.join(TB_OUTPUT_DIR, filename.rsplit(".", 1)[0] + ".csv")
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["time_ms", "amplitude"])
-        for t, v in zip(t_ms, samples):
-            writer.writerow([f"{t:.6f}", f"{v:.6f}"])
 
     # FFT
     sig = np.array(samples, dtype=float)
@@ -155,48 +108,44 @@ def plot_frequencies(samples,
     window = np.hanning(N)
     sig_windowed = sig * window
 
-    nfft = max(N, 4096)  # zero-pad for smoother spectrum
+    nfft = max(N, 4096)
     fft_vals = np.fft.rfft(sig_windowed, n=nfft)
     fft_mag = np.abs(fft_vals) / N
     freqs = np.fft.rfftfreq(nfft, d=1.0 / sample_rate)
 
-    # Find 3 highest peaks (skip DC bin)
+    # Find 3 highest peaks
     mag_no_dc = fft_mag.copy()
     mag_no_dc[0] = 0
     peak_indices = []
-    min_bin_gap = max(1, int(20 * N / sample_rate))  # ~20 Hz exclusion zone
+    min_bin_gap = max(1, int(20 * N / sample_rate))
 
     for _ in range(3):
         idx = int(np.argmax(mag_no_dc))
         if mag_no_dc[idx] <= 0:
             break
         peak_indices.append(idx)
-        # Zero out neighbourhood to find next independent peak
         lo = max(0, idx - min_bin_gap)
         hi = min(len(mag_no_dc), idx + min_bin_gap + 1)
         mag_no_dc[lo:hi] = 0
 
     detected_freqs = [float(freqs[i]) for i in peak_indices]
 
-    # ── Plot ─────────────────────────────────────────────────────────────
+    # Plot
     plot_path = os.path.join(TB_OUTPUT_DIR, filename)
     fig, (ax_time, ax_fft) = plt.subplots(2, 1, figsize=(12, 7))
     fig.suptitle(title, fontsize=13, fontweight='bold')
 
-    # -- Time-domain subplot --
     ax_time.plot(t_ms, samples, linewidth=1.2, color='black')
     ax_time.set_xlabel("Time (ms)")
     ax_time.set_ylabel("Amplitude")
     ax_time.axhline(0, color="grey", linewidth=0.3)
     ax_time.grid(True, alpha=0.3)
 
-    # -- FFT subplot --
     ax_fft.plot(freqs, fft_mag, linewidth=2.0, color='black', label='FFT magnitude')
 
     for rank, idx in enumerate(peak_indices):
         ax_fft.plot(freqs[idx], fft_mag[idx], 'o', color='red', markersize=8)
 
-    # Summary text box
     lines = []
     sorted_expected = sorted(expected_freqs)
     sorted_detected = sorted(detected_freqs)
@@ -225,95 +174,3 @@ def plot_frequencies(samples,
         'detected_freqs': detected_freqs,
         'expected_freqs': list(expected_freqs),
     }
-
-
-def plot_filter_response(responses: dict[str, list[tuple[float, float]]],
-                         fc_hz: float,
-                         q: float,
-                         filename: str = "filter_response.png",
-                         sample_rate: int = SAMPLE_RATE):
-    """Plot bypass-normalised SVF frequency response (Bode plot).
-
-    Each filter mode is plotted in its own figure.
-
-    Parameters
-    ----------
-    responses : dict
-        mode_name -> list of (frequency_hz, rms_amplitude) tuples.
-        Must include a ``"bypass"`` key for the unfiltered reference.
-    fc_hz : float
-        Filter cutoff frequency in Hz.
-    q : float
-        Filter Q factor.
-    filename : str
-        Output PNG filename (saved under TB_OUTPUT_DIR).
-        Per-mode files are named ``filter_response_LP.png``, etc.
-    sample_rate : int
-        Sample rate used during capture.
-    """
-    # ── Bypass reference ─────────────────────────────────────────────────
-    ref_data = responses.get("bypass", [])
-    ref_rms = {f: rms for f, rms in ref_data}
-
-    colors = {"LP": "#1f77b4", "HP": "#d62728", "BP": "#2ca02c", "BR": "#9467bd"}
-
-    # ── Write CSV ────────────────────────────────────────────────────────
-    csv_path = os.path.join(TB_OUTPUT_DIR, filename.rsplit(".", 1)[0] + ".csv")
-    mode_names = [m for m in responses if m != "bypass"]
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        header = ["frequency_hz", "bypass_rms"]
-        for m in mode_names:
-            header += [f"{m}_rms", f"{m}_dB"]
-        writer.writerow(header)
-
-        if ref_data:
-            for i, (freq, ref) in enumerate(ref_data):
-                row = [f"{freq:.2f}", f"{ref:.8f}"]
-                for m in mode_names:
-                    rms = responses[m][i][1] if i < len(responses[m]) else 0
-                    gain = rms / ref if ref > 1e-12 else 1e-12
-                    db = 20 * np.log10(max(gain, 1e-12))
-                    row += [f"{rms:.8f}", f"{db:.2f}"]
-                writer.writerow(row)
-
-    # ── Per-mode plots ───────────────────────────────────────────────────
-    base, ext = filename.rsplit(".", 1)
-
-    for mode_name in mode_names:
-        mode_data = responses[mode_name]
-        freqs, gains_db = [], []
-        for freq, rms in mode_data:
-            ref = ref_rms.get(freq, 1e-12)
-            gain = rms / ref if ref > 1e-12 else 1e-12
-            freqs.append(freq)
-            gains_db.append(20 * np.log10(max(gain, 1e-12)))
-
-        color = colors.get(mode_name, "black")
-        plot_path = os.path.join(TB_OUTPUT_DIR, f"{base}_{mode_name}.{ext}")
-
-        fig, ax = plt.subplots(figsize=(12, 6))
-        ax.semilogx(freqs, gains_db, "o-", color=color, lw=2,
-                     markersize=5, label=mode_name)
-
-        # Cutoff and -3 dB reference lines
-        ax.axvline(x=fc_hz, color="black", ls="--", lw=1.5, alpha=0.5,
-                   label=f"fc = {fc_hz:.0f} Hz")
-        ax.axhline(-3, color="black", ls="-", lw=0.8, alpha=0.5, label="-3 dB")
-        ax.plot(fc_hz, -3, "ko", ms=6)
-
-        # Reference slope: -40 dB/decade (2nd-order rolloff)
-        f_slope = np.logspace(np.log10(fc_hz), np.log10(max(freqs) * 1.5), 50)
-        slope_db = -40.0 * np.log10(f_slope / fc_hz)
-        ax.semilogx(f_slope, slope_db, ":", color="grey", lw=1.2, alpha=0.6,
-                    label="-40 dB/dec")
-
-        ax.set_xlabel("Frequency (Hz)")
-        ax.set_ylabel("Magnitude (dB)")
-        ax.set_title(f"SVF {mode_name} Response — fc = {fc_hz:.0f} Hz, Q = {q:.2f}")
-        ax.set_ylim(-60, 6)
-        ax.grid(True, which="both", alpha=0.3)
-        ax.legend(loc="lower left")
-        fig.tight_layout()
-        fig.savefig(plot_path, dpi=150)
-        plt.close(fig)

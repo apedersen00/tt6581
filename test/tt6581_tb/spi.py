@@ -1,18 +1,15 @@
-# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
-# SPDX-License-Identifier: Apache-2.0
-
-"""Low-level SPI driver for the TT6581 register interface."""
+"""
+SPI driver for the TT6581 register interface.
+"""
 
 from cocotb.triggers import Timer
 
 from .constants import SPI_FREQ_NS
 
-
 async def spi_write(dut, addr: int, data: int):
-    """Write an 8-bit value to a 7-bit register address over SPI.
-
+    """
+    Write an 8-bit value to a 7-bit register address over SPI.
     Frame: [1(write) | addr(7) | data(8)], MSB first.
-    Drives ui_in[0] (sclk), ui_in[1] (cs), ui_in[2] (mosi).
     """
     word = (1 << 15) | ((addr & 0x7F) << 8) | (data & 0xFF)
     base = int(dut.ui_in.value) & ~0x07
@@ -39,10 +36,9 @@ async def spi_write(dut, addr: int, data: int):
 
 
 async def spi_read(dut, addr: int) -> int:
-    """Read an 8-bit value from a 7-bit register address over SPI.
-
+    """
+    Read an 8-bit value from a 7-bit register address over SPI.
     Frame: [0(read) | addr(7) | 0x00], MSB first.
-    Returns the byte sampled on uo_out[0] (MISO) during the data phase.
     """
     word = ((addr & 0x7F) << 8) | 0x00
     base = int(dut.ui_in.value) & ~0x07

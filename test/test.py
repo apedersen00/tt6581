@@ -1,6 +1,3 @@
-# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
-# SPDX-License-Identifier: Apache-2.0
-
 """
 CocoTB tests for the TT6581.
 """
@@ -14,11 +11,11 @@ from tt6581_tb import (
     V0_BASE, V1_BASE, V2_BASE, WAVE_TRI, WAVE_SAW, WAVE_PULSE, WAVE_NOISE, WAVEFORM_NAMES,
     FILT_LP, FILT_HP, FILT_BP, FILT_BR, FILT_V0, SAMPLE_RATE,
     # voice helpers
-    setup_voice, gate_on, gate_off, set_volume, set_voice_freq, set_filter,
+    setup_voice, gate_on, gate_off, set_volume,
     # signal / capture
     reset_dut, capture_audio,
     # plotting
-    plot_audio_samples, plot_frequencies, plot_envelope, plot_filter_response
+    plot_audio_samples, plot_frequencies, plot_envelope
 )
 
 
@@ -32,12 +29,12 @@ async def test_waveforms(dut):
     Play all four waveforms at 1000 Hz and plot them.
     """
 
-    dut._log.info("=== test_waveforms: start ===")
+    dut._log.info("*** test_waveforms: start ***")
 
     clock = Clock(dut.clk, 20, unit="ns")   # 50 MHz
     cocotb.start_soon(clock.start())
     await reset_dut(dut)
-    await set_volume(dut, 0xFF)             # Max volume
+    await set_volume(dut, 0xFF)
 
     for wave_mask, wave_name in WAVEFORM_NAMES.items():
         dut._log.info(f"*** {wave_name} ***")
@@ -64,7 +61,7 @@ async def test_waveforms(dut):
         await gate_off(dut, V0_BASE, wave_mask)
         await ClockCycles(dut.clk, 5000)
 
-    dut._log.info("=== test_waveforms: done ===")
+    dut._log.info("*** test_waveforms: done ***")
 
 @cocotb.test()
 async def test_frequencies(dut):
@@ -72,12 +69,12 @@ async def test_frequencies(dut):
     Play three voices at different frequencies and calculate frequency spectrum.
     """
 
-    dut._log.info("=== test_frequencies: start ===")
+    dut._log.info("*** test_frequencies: start ***")
 
     clock = Clock(dut.clk, 20, unit="ns")   # 50 MHz
     cocotb.start_soon(clock.start())
     await reset_dut(dut)
-    await set_volume(dut, 0xFF)             # Max volume
+    await set_volume(dut, 0xFF)
 
     freqs = [
         [100, 1000, 5000],
@@ -126,14 +123,14 @@ async def test_frequencies(dut):
         await gate_off(dut, V2_BASE, WAVE_TRI)
         await ClockCycles(dut.clk, 5000)
 
-    dut._log.info("=== test_frequencies: done ===")
+    dut._log.info("*** test_frequencies: done ***")
 
 @cocotb.test()
 async def test_envelopes(dut):
     """Test different ADSR envelope settings with a sawtooth and plot the
     amplitude envelope over time."""
 
-    dut._log.info("=== test_envelopes: start ===")
+    dut._log.info("*** test_envelopes: start ***")
 
     clock = Clock(dut.clk, 20, unit="ns")
     cocotb.start_soon(clock.start())
@@ -177,7 +174,6 @@ async def test_envelopes(dut):
 
         all_traces.append((label, combined))
 
-        # Small settle gap
         await ClockCycles(dut.clk, 5000)
 
-    dut._log.info("=== test_envelopes: done ===")
+    dut._log.info("*** test_envelopes: done ***")

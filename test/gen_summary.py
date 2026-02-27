@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-
-"""Generate a Markdown test summary with inline plots for GitHub Actions."""
-
 import argparse
 import os
 import xml.etree.ElementTree as ET
@@ -9,11 +6,10 @@ import xml.etree.ElementTree as ET
 RESULTS_XML = os.path.join(os.path.dirname(__file__) or ".", "results.xml")
 PLOT_DIR = os.path.join(os.path.dirname(__file__) or ".", "tmp")
 
-# GitHub step summary hard limit is 1024 kB.
-MAX_SUMMARY_KB = 1024
-
-
 def parse_results(xml_path: str) -> list[dict]:
+    """
+    Parse cocotb result xml.
+    """
     tree = ET.parse(xml_path)
     root = tree.getroot()
     cases = []
@@ -33,8 +29,10 @@ def parse_results(xml_path: str) -> list[dict]:
         })
     return cases
 
-
 def img_tag(path: str, alt: str = "", width: int = 600) -> str:
+    """
+    Generate link to image from artifact branch.
+    """
     if not os.path.isfile(path):
         return f"*Plot not found: `{os.path.basename(path)}`*"
     
@@ -50,7 +48,7 @@ def img_tag(path: str, alt: str = "", width: int = 600) -> str:
 
 
 def generate_markdown() -> str:
-    """Build the full Markdown summary string."""
+    """Generate markdown summary."""
     lines: list[str] = []
     lines.append("# TT6581 Test Results\n")
 
@@ -117,28 +115,6 @@ def generate_markdown() -> str:
 
     path = os.path.join(PLOT_DIR, 'env_A4_D4_S10_R4.png')
     lines.append(img_tag(path, alt='envelope test 1'))
-    lines.append('')
-
-    #==================================
-    # Filter Tests
-    #==================================
-    lines.append("## Filter Test\n")
-    lines.append("Frequency response of the Chamberlin State-Variable Filter in all modes.\n")
-
-    path = os.path.join(PLOT_DIR, 'filter_response_LP.png')
-    lines.append(img_tag(path, alt='filter LP'))
-    lines.append('')
-
-    path = os.path.join(PLOT_DIR, 'filter_response_HP.png')
-    lines.append(img_tag(path, alt='filter HP'))
-    lines.append('')
-
-    path = os.path.join(PLOT_DIR, 'filter_response_BP.png')
-    lines.append(img_tag(path, alt='filter BP'))
-    lines.append('')
-
-    path = os.path.join(PLOT_DIR, 'filter_response_BR.png')
-    lines.append(img_tag(path, alt='filter BR'))
     lines.append('')
 
     return "\n".join(lines)
