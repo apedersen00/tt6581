@@ -1,9 +1,12 @@
-//---------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
 //
 //  File: mult.sv
-//  Description: Shift-add multiplier.
+//  Description: 24x16 bit signed shift-add multiplier.
 //
-//---------------------------------------------------------
+//  Author:
+//    - Andreas Pedersen
+//
+//-------------------------------------------------------------------------------------------------
 
 /*
   Instantiation Template:
@@ -61,13 +64,13 @@ module mult (
   always_comb begin
     nxt_state = STATE_READY;
     case (cur_state)
-      STATE_READY: nxt_state = start_i       ? STATE_ITER  : STATE_READY;
-      STATE_ITER:  nxt_state = (iter == 5'd16) ? STATE_READY : STATE_ITER;
+      STATE_READY: nxt_state = start_i          ? STATE_ITER  : STATE_READY;
+      STATE_ITER:  nxt_state = (iter == 5'd16)  ? STATE_READY : STATE_ITER;
     endcase
   end
 
   /************************************
-   * Sequential multiplication
+   * Shift-add multiplication
    ***********************************/
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin

@@ -11,22 +11,22 @@ endif
 VERILATOR_FLAGS += -cc --exe
 VERILATOR_FLAGS += -x-assign fast
 VERILATOR_FLAGS += -Wall
-# VERILATOR_FLAGS += --trace
+VERILATOR_FLAGS += --trace
 VERILATOR_FLAGS += --assert -Wno-EOFNEWLINE
 
 # Simulation targets
-TARGETS = sine mult spi voice tt6581 envelope svf sid_player delta_sigma
+TARGETS = mult spi multi_voice envelope svf delta_sigma tt6581 sid_player
 
 # Module source dependencies
-SRCS_sine   	= src/sine.sv
-SRCS_mult   	= src/mult.sv
-SRCS_spi		= src/spi.sv
-SRCS_voice		= src/voice.sv
-SRCS_tt6581		= src/tt6581.sv src/multi_voice.sv src/spi.sv src/reg_file.sv src/controller.sv src/tick_gen.sv src/envelope.sv src/mult.sv src/svf.sv src/delta_sigma.sv
-SRCS_envelope	= src/envelope.sv src/mult.sv
-SRCS_svf		= src/svf.sv src/mult.sv
-SRCS_sid_player	= src/tt6581.sv src/multi_voice.sv src/spi.sv src/reg_file.sv src/controller.sv src/tick_gen.sv src/envelope.sv src/mult.sv src/svf.sv src/delta_sigma.sv
-SRCS_delta_sigma = src/delta_sigma.sv
+SRCS_sine   	= ../src/sine.sv
+SRCS_mult   	= ../src/mult.sv
+SRCS_spi		= ../src/spi.sv
+SRCS_voice		= ../src/voice.sv
+SRCS_tt6581		= ../src/tt6581.sv ../src/multi_voice.sv ../src/spi.sv ../src/reg_file.sv ../src/controller.sv ../src/tick_gen.sv ../src/envelope.sv ../src/mult.sv ../src/svf.sv ../src/delta_sigma.sv
+SRCS_envelope	= ../src/envelope.sv ../src/mult.sv
+SRCS_svf		= ../src/svf.sv ../src/mult.sv
+SRCS_sid_player	= ../src/tt6581.sv ../src/multi_voice.sv ../src/spi.sv ../src/reg_file.sv ../src/controller.sv ../src/tick_gen.sv ../src/envelope.sv ../src/mult.sv ../src/svf.sv ../src/delta_sigma.sv
+SRCS_delta_sigma = ../src/delta_sigma.sv
 
 ######################################################################
 default: help
@@ -35,7 +35,7 @@ core:
 	@echo
 	@echo "-- VERILATE $@ ----------------"
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_$@ \
-		sim/tb_$@.sv sim/sim_$@.cpp
+		tb/tb_$@.sv cpp/sim_$@.cpp
 
 	@echo
 	@echo "-- BUILD $@ -------------------"
@@ -56,7 +56,7 @@ $(filter-out core,$(TARGETS)): %:
 	@echo
 	@echo "-- VERILATE $@ ----------------"
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_$@ \
-		$(SRCS_$@) sim/tb_$@.sv sim/sim_$@.cpp
+		$(SRCS_$@) tb/tb_$@.sv cpp/sim_$@.cpp
 
 	@echo
 	@echo "-- BUILD $@ -------------------"
