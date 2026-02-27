@@ -55,6 +55,7 @@ module tt_um_andreasp00 (
   wire _unused_ok = &{
       ena,
       uio_in[7:4],
+      uio_in[2],
       ui_in,
       1'b0
   };
