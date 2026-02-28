@@ -97,8 +97,6 @@ module svf (
   logic signed [23:0] reg_band;
   logic signed [23:0] reg_low;
   logic signed [23:0] hp_node;
-  logic signed [23:0] bp_node;
-  logic signed [23:0] lp_node;
 
   assign ready_o = (cur_state == STATE_DONE);
 
@@ -127,7 +125,7 @@ module svf (
         mult_start_o = 1'b1;
       end
       STATE_MULT_F2: begin
-        mult_a_o     = bp_node;
+        mult_a_o     = reg_band;
         mult_b_o     = coeff_f_i;
         mult_start_o = 1'b1;
       end
@@ -143,22 +141,16 @@ module svf (
       reg_band <= '0;
       reg_low  <= '0;
       hp_node  <= '0;
-      bp_node  <= '0;
-      lp_node  <= '0;
     end else begin
       unique case (cur_state)
         STATE_CALC_HP:
           hp_node <= { {10{wave_i[13]}}, wave_i } - reg_low - mult_q_shifted;
 
-        STATE_CALC_BP: begin
-          bp_node  <= reg_band + mult_f_shifted;
+        STATE_CALC_BP:
           reg_band <= reg_band + mult_f_shifted;
-        end
 
-        STATE_CALC_LP: begin
-          lp_node <= reg_low + mult_f_shifted;
+        STATE_CALC_LP:
           reg_low <= reg_low + mult_f_shifted;
-        end
 
         default: ;
       endcase
@@ -169,16 +161,16 @@ module svf (
    * Output mux
    ***********************************/
   logic signed [23:0] br_node;
-  assign br_node = hp_node + lp_node;
+  assign br_node = hp_node + reg_low;
 
   logic signed [23:0] selected_out;
   always_comb begin
     case (filt_sel_i)
-      3'b001:  selected_out = lp_node;
-      3'b010:  selected_out = bp_node;
+      3'b001:  selected_out = reg_low;
+      3'b010:  selected_out = reg_band;
       3'b100:  selected_out = hp_node;
       3'b101:  selected_out = br_node;
-      default: selected_out = lp_node;
+      default: selected_out = reg_low;
     endcase
   end
 
