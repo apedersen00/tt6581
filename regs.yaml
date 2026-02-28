@@ -1,0 +1,262 @@
+system:
+  name: "TT6581"
+  data_width: 8
+  addr_width: 7
+
+groups:
+  - name: VOICE_1
+    base_addr: 0x00
+    description: "Configuration of Voice Channel 1"
+    registers:
+      - name: FREQ_LO
+        offset: 0x00
+        description: "Lower 8 bits of frequency value"
+
+      - name: FREQ_HI
+        offset: 0x01
+        description: "Upper 8 bits of frequency value"
+
+      - name: PW_LO
+        offset: 0x02
+        description: "Lower 8 bits of pulse width value"
+
+      - name: PW_HI
+        offset: 0x03
+        fields:
+          - name: VAL
+            bits: "3:0"
+            description: "Upper 4 bits of pulse width value"
+
+      - name: CONTROL
+        offset: 0x04
+        description: "Voice control register"
+        fields:
+          - name: NOISE
+            bits: "7"
+            description: "Select white noise"
+          - name: SQUARE
+            bits: "6"
+            description: "Enable square wave"
+          - name: SAW
+            bits: "5"
+            description: "Enable sawtooth"
+          - name: TRI
+            bits: "4"
+            description: "Enable triangle wave"
+          - name: SINE
+            bits: "3"
+            description: "Enable sine wave"
+          - name: RING_MOD
+            bits: "2"
+            description: "Enable ring modulation"
+          - name: SYNC
+            bits: "1"
+            description: "Enable sync"
+          - name: GATE
+            bits: "0"
+            description: "Enables the envelope generator" 
+
+      - name: AD
+        offset: 0x05
+        description: "Attack / Decay"
+        fields:
+          - name: ATTACK
+            bits: "7:4"
+            description: Attack value.
+          - name: DECAY
+            bits: "3:0"
+            description: Decay value.
+
+      - name: SR
+        offset: 0x06
+        description: "Sustain / Release"
+        fields:
+          - name: SUSTAIN
+            bits: "7:4"
+            description: Sustain value.
+          - name: RELEASE
+            bits: "3:0"
+            description: Release value.
+
+  - name: VOICE_2
+    base_addr: 0x07
+    description: "Configuration of Voice Channel 2"
+    registers:
+      - name: FREQ_LO
+        offset: 0x00
+        description: "Lower 8 bits of frequency value"
+
+      - name: FREQ_HI
+        offset: 0x01
+        description: "Upper 8 bits of frequency value"
+
+      - name: PW_LO
+        offset: 0x02
+        description: "Lower 8 bits of pulse width value"
+
+      - name: PW_HI
+        offset: 0x03
+        fields:
+          - name: VAL
+            bits: "3:0"
+            description: "Upper 4 bits of pulse width value"
+
+      - name: CONTROL
+        offset: 0x04
+        description: "Voice control register"
+        fields:
+          - name: NOISE
+            bits: "7"
+            description: "Select white noise"
+          - name: SQUARE
+            bits: "6"
+            description: "Enable square wave"
+          - name: SAW
+            bits: "5"
+            description: "Enable sawtooth"
+          - name: TRI
+            bits: "4"
+            description: "Enable triangle wave"
+          - name: SINE
+            bits: "3"
+            description: "Enable sine wave"
+          - name: RING_MOD
+            bits: "2"
+            description: "Enable ring modulation"
+          - name: SYNC
+            bits: "1"
+            description: "Enable sync"
+          - name: GATE
+            bits: "0"
+            description: "Enables the envelope generator" 
+
+      - name: AD
+        offset: 0x05
+        description: "Attack / Decay"
+        fields:
+          - name: ATTACK
+            bits: "7:4"
+            description: Attack value.
+          - name: DECAY
+            bits: "3:0"
+            description: Decay value.
+
+      - name: SR
+        offset: 0x06
+        description: "Sustain / Release"
+        fields:
+          - name: SUSTAIN
+            bits: "7:4"
+            description: Sustain value.
+          - name: RELEASE
+            bits: "3:0"
+            description: Release value.
+
+  - name: VOICE_3
+    base_addr: 0x0E
+    description: "Configuration of Voice Channel 3"
+    registers:
+      - name: FREQ_LO
+        offset: 0x00
+        description: "Lower 8 bits of frequency value"
+
+      - name: FREQ_HI
+        offset: 0x01
+        description: "Upper 8 bits of frequency value"
+
+      - name: PW_LO
+        offset: 0x02
+        description: "Lower 8 bits of pulse width value"
+
+      - name: PW_HI
+        offset: 0x03
+        fields:
+          - name: VAL
+            bits: "3:0"
+            description: "Upper 4 bits of pulse width value"
+
+      - name: CONTROL
+        offset: 0x04
+        description: "Voice control register"
+        fields:
+          - name: NOISE
+            bits: "7"
+            description: "Select white noise"
+          - name: SQUARE
+            bits: "6"
+            description: "Enable square wave"
+          - name: SAW
+            bits: "5"
+            description: "Enable sawtooth"
+          - name: TRI
+            bits: "4"
+            description: "Enable triangle wave"
+          - name: SINE
+            bits: "3"
+            description: "Enable sine wave"
+          - name: RING_MOD
+            bits: "2"
+            description: "Enable ring modulation"
+          - name: SYNC
+            bits: "1"
+            description: "Enable sync"
+          - name: GATE
+            bits: "0"
+            description: "Enables the envelope generator" 
+
+      - name: AD
+        offset: 0x05
+        description: "Attack / Decay"
+        fields:
+          - name: ATTACK
+            bits: "7:4"
+            description: Attack value.
+          - name: DECAY
+            bits: "3:0"
+            description: Decay value.
+
+      - name: SR
+        offset: 0x06
+        description: "Sustain / Release"
+        fields:
+          - name: SUSTAIN
+            bits: "7:4"
+            description: Sustain value.
+          - name: RELEASE
+            bits: "3:0"
+            description: Release value.
+
+  - name: FILTER
+    base_addr: 0x15
+    description: "Configuration of filters"
+    registers:
+      - name: F_LO
+        offset: 0x00
+        description: "Lower 8 bits of filter frequency coefficient"
+
+      - name: F_HI
+        offset: 0x01
+        description: "Upper 8 bits of filter frequency coefficient"
+
+      - name: Q_LO
+        offset: 0x02
+        description: "Lower 8 bits of filter damping coefficient"
+
+      - name: Q_HI
+        offset: 0x03
+        description: "Upper 8 bits of filter damping coefficient"
+
+      - name: EN_MODE
+        offset: 0x04
+        description: "Filter enable and mode"
+        fields:
+          - name: FILTER_EN
+            bits: "5:3"
+            description: "Enable filtering of voices"
+          - name: FILTER_MODE
+            bits: "2:0"
+            description: "Set filter mode"
+
+      - name: VOLUME
+        offset: 0x05
+        description: "Volume"
