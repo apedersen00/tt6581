@@ -2,15 +2,15 @@
 
 # TT6581
 
-Inspired by the legendary MOS6581 Sound Interface Device (SID) chip used in retro computers such as the Commodore 64, the _Tiny Tapeout_ 6581 (TT6581) is a completely digital interpretation supporting nearly the entire original MOS6581 feature set implemeted in 2x2 tiles for Tiny Tapeout.
+Inspired by the legendary MOS6581 Sound Interface Device (SID) chip used in retro computers such as the Commodore 64, the _Tiny Tapeout_ 6581 (TT6581) is a completely digital interpretation supporting nearly the entire original MOS6581 feature set, implemented in 2x2 tiles for Tiny Tapeout.
 
-As a demonstration here are two songs that **are produced by RTL testbenches**:
+As a demonstration, here are two songs that **are produced by RTL testbenches**:
 
-Port of _Monty on the Run_ by Rob Hubburd:
+Port of _Monty on the Run_ by Rob Hubbard:
 
 https://github.com/user-attachments/assets/aede3a49-307a-4b56-abea-9a842e0d1250
 
-10 second Nocturne demonstrating the filter:
+10-second Nocturne demonstrating the filter:
 
 https://github.com/user-attachments/assets/fff6d938-7d75-444d-9261-1e6ea31e3630
 
@@ -27,19 +27,19 @@ https://github.com/user-attachments/assets/fff6d938-7d75-444d-9261-1e6ea31e3630
 
 ![TT6581 Architecture](media/tt6581_datapath.png)
 
-Above the rough diagram shows the datapath in the TT6581. A tick generator enables the generation of a single audio sample.
+The diagram above shows the datapath in the TT6581. A tick generator triggers the generation of a single audio sample.
 
-1. **Voice Generation:** One 10-bit voice at a time is generated. Internal phase registers keep track of each voice's state while inactive. The frequency and waveform type is set by the programmed values in the register file.
+1. **Voice Generation:** One 10-bit voice at a time is generated. Internal phase registers keep track of each voice's state while inactive. The frequency and waveform type are set by the programmed values in the register file.
 
 2. **Envelope:** An envelope value from 255 (max) to 0 (min) is generated and applied to each voice one at a time by multiplication.
 
 3. **Wave Accumulation:** The three voices are accumulated (mixed) by addition. Depending on the filter enable bit of each voice, they are accumulated in one of two registers: one that will be passed through the SVF, and one that will bypass it.
 
-4. **Filter:**  The SVF is applied to the voices with filtering enabled. The filter is a Chamberlin State-Variable Filter and produce a low-pass, high-pass, band-pass or band-reject filter depending on configuration. Both cut-off frequency and resonance (Q) are tuneable. Running the filter on one sample requires three multiplications.
+4. **Filter:** The SVF is applied to the voices with filtering enabled. It is a Chamberlin State-Variable Filter and produces a low-pass, high-pass, band-pass or band-reject output depending on configuration. Both cutoff frequency and resonance (Q) are tuneable. Running the filter on one sample requires three multiplications.
 
 5. **Global Volume:** The SVF output is summed with the voices in the bypass accumulator. A global 8-bit volume is applied by multiplication. The result is the final mix.
 
-6. **Delta-Sigma PDM:** A Error-Feedback Delta-Sigma modulator produces a 1-bit PDM output. The modulator runs at 10 MHz for an Oversampling-Rate (OSR) of 200.
+6. **Delta-Sigma PDM:** An error-feedback Delta-Sigma modulator produces a 1-bit PDM output. The modulator runs at 10 MHz for an oversampling ratio (OSR) of 200.
 
 ## Pin Mapping
 
@@ -60,10 +60,10 @@ The PDM output should be passed through a 4th order Bessel filter for the best r
 
 ## Quick Start
 
-The TT6581 is programmed in much the same way as the original MOS6581. The register layout mirrors the original SID, three voice channels followed by filter and volume registers. The same ADSR, waveform selection and filter concepts apply. The main differences are:
+The TT6581 is programmed in much the same way as the original MOS6581. The register layout mirrors the original SID — three voice channels followed by filter and volume registers — and the same ADSR, waveform selection and filter concepts apply. The main differences are:
 
 - Registers are accessed through an SPI interface.
-- The filter coefficients are pre-calculated and written directly as fixed-point alues, rather than the raw 11-bit FC value used by the MOS6581.
+- The filter coefficients are pre-calculated and written directly as fixed-point values, rather than the raw 11-bit FC value used by the MOS6581.
 
 ### SPI Protocol
 
@@ -189,7 +189,7 @@ The project contains two separate testbench environments:
 1. C++ testbenches for Verilator
 2. CocoTB testbenches
 
-The C++ Verilator testbenches are significantly faster and was the main tool for verification during development. The CocoTB was implemented as a high-level verification that can also run on the synthesizes gate-level netlist.
+The C++ Verilator testbenches are significantly faster and were the main tool for verification during development. The CocoTB testbenches were implemented as high-level verification that can also run on the synthesized gate-level netlist.
 
 ### Verilator
 
@@ -201,7 +201,7 @@ sim
 ├── logs        # Waveform files
 ├── tmp         # Temporary data files from the TBs
 ├── out         # Testbench results
-├── scripts     # Python script for parsin TB intermediate files in out/
+├── scripts     # Python scripts for parsing TB intermediate files in out/
 ├── stimulus    # Stimulus file for tt6581_player TB
 ├── tb          # SystemVerilog wrappers for the testbenches
 └── Makefile    # Makefile for running the testbenches
@@ -222,21 +222,21 @@ make delta_sigma
 
 A brief description of each testbench:
 
-- **tt6581:** Produces a 10 second song (`.wav` file). Intended to demonstrate must of the TT6581's capabilities. Uses all three voices and the filter.
+- **tt6581:** Produces a 10-second song (`.wav` file). Intended to demonstrate most of the TT6581's capabilities. Uses all three voices and the filter.
 
-- **tt6581_player:** This testbench simulates and players the entirety of _Monty on the Run_ by Rob Hubbard by reading the stimulus file `stimulus/Hubbard_Rob_Monty_on_the_Run_tt6581_stimulus.txt`. The stimulus was generated by running the assembly code for _Monty on the Run_ (from [this](https://github.com/realdmx/c64_6581_sid_players) repository) in a modified 6502 emulator that records all memory writes to the SID. The recorded memory writes were then translated to work on the TT6581.
+- **tt6581_player:** This testbench simulates and plays the entirety of _Monty on the Run_ by Rob Hubbard by reading the stimulus file `stimulus/Hubbard_Rob_Monty_on_the_Run_tt6581_stimulus.txt`. The stimulus was generated by running the assembly code for _Monty on the Run_ (from [this](https://github.com/realdmx/c64_6581_sid_players) repository) in a modified 6502 emulator that records all memory writes to the SID. The recorded memory writes were then translated to work on the TT6581.
 
 - **tt6581_bode**: Simply plays a sine sweep and records the output. Produces a bode plot. Intended to check the frequency range.
 
 - **svf:** Tests the Chamberlin SVF in all four supported modes. A sine sweep is used as the input. Produces four frequency response plots as the output.
 
-- **mult**: Tests the 24x16 shift-add multiplier. Inputs N randomly generate operands and verifies the hardware result against software.
+- **mult:** Tests the 24x16 shift-add multiplier. Inputs N randomly generated operands and verifies the hardware result against software.
 
 - **envelope:** Tests the envelope generator by inputting known ADSR values with a constant wave input. Plots the produced envelope.
 
 ### CocoTB
 
-Currently has three testbenches. They are automatically run as a Github Action on push. When all three tests have completed a summary is generated and stored. More importantly, these tests are also run on the synthesized gate-level netlist. To see the three tests and the summary, simply go to a successful `test` or `gl_test` run.
+Currently has three testbenches. They are automatically run as a GitHub Action on push. When all three tests have completed, a summary is generated and stored. More importantly, these tests are also run on the synthesized gate-level netlist. To see the three tests and the summary, simply go to a successful `test` or `gl_test` run.
 
 - [Latest test results](https://github.com/apedersen00/tt6581/actions/workflows/test.yaml?query=is%3Asuccess)
 - [Latest gate-level test results](https://github.com/apedersen00/tt6581/actions/workflows/gds.yaml?query=is%3Asuccess)
