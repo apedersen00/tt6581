@@ -110,6 +110,12 @@ $$
 
 where $F_s = 50$ kHz (sample rate). The 16-bit FCW is split across `FREQ_LO` (bits 7:0) and `FREQ_HI` (bits 15:8).
 
+The maximum representable voice frequency is limited by the 16-bit FCW:
+
+$$
+f_{\max} = \frac{65535 \times F_s}{2^{19}} \approx 6250 \text{ Hz}
+$$
+
 **Filter Cutoff Coefficient** (Q1.15 signed):
 
 $$
