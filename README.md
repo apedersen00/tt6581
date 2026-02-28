@@ -2,7 +2,7 @@
 
 # TT6581
 
-Inspired by the legendary MOS6581 Sound Interface Device (SID) chip used in retro computers such as the Commodore 64, the _Tiny Tapeout_ 6581 (TT6581) is a completely digital interpretation supporting nearly the entire original MOS6581 feature set, implemented in 2x2 tiles for Tiny Tapeout.
+Inspired by the legendary MOS6581 Sound Interface Device (SID) chip used in retro computers such as the Commodore 64, the _Tiny Tapeout_ 6581 (TT6581) is a original digital interpretation supporting nearly the entire original MOS6581 feature set, implemented in 2x2 tiles for Tiny Tapeout.
 
 As a demonstration, here are two songs that **are produced by RTL testbenches**:
 
@@ -25,21 +25,21 @@ https://github.com/user-attachments/assets/fff6d938-7d75-444d-9261-1e6ea31e3630
 
 ## Architecture
 
-![TT6581 Architecture](media/tt6581_datapath.png)
+![TT6581 Architecture](docs/tt6581_datapath.png)
 
 The diagram above shows the datapath in the TT6581. A tick generator triggers the generation of a single audio sample.
 
-1. **Voice Generation:** One 10-bit voice at a time is generated. Internal phase registers keep track of each voice's state while inactive. The frequency and waveform type are set by the programmed values in the register file.
+1. **Voice Generation:** One 10-bit voice at a time is generated. Internal phase registers keep track of each voice's state while inactive. The frequency and waveform type are set by the programmed values in the register file. Supported waveforms are triangle, sawtooth, pulse or noise.
 
-2. **Envelope:** An envelope value from 255 (max) to 0 (min) is generated and applied to each voice one at a time by multiplication.
+2. **Envelope:** An ADSR envelope generator produces an 8-bit amplitude value per voice. The envelope is applied to each voice by multiplication using a shared 24x16 shift-add multiplier.
 
 3. **Wave Accumulation:** The three voices are accumulated (mixed) by addition. Depending on the filter enable bit of each voice, they are accumulated in one of two registers: one that will be passed through the SVF, and one that will bypass it.
 
-4. **Filter:** The SVF is applied to the voices with filtering enabled. It is a Chamberlin State-Variable Filter and produces a low-pass, high-pass, band-pass or band-reject output depending on configuration. Both cutoff frequency and resonance (Q) are tuneable. Running the filter on one sample requires three multiplications.
+4. **Filter:** A Chamberlin State-Variable Filter (SVF) processes the filter accumulator. It supports low-pass, high-pass, band-pass and band-reject modes with tuneable frequency cutoff and resonance (Q).
 
-5. **Global Volume:** The SVF output is summed with the voices in the bypass accumulator. A global 8-bit volume is applied by multiplication. The result is the final mix.
+5. **Global Volume:** The SVF output is summed with the bypass accumulator. A global 8-bit volume is applied by multiplication resulting in the final mix.
 
-6. **Delta-Sigma PDM:** An error-feedback Delta-Sigma modulator produces a 1-bit PDM output. The modulator runs at 10 MHz for an oversampling ratio (OSR) of 200.
+6. **Delta-Sigma PDM:** An error-feedback Delta-Sigma modulator converts the final mix to 1-bit PDM output at 10 MHz (OSR = 200).
 
 ## Pin Mapping
 
@@ -75,7 +75,7 @@ The SPI interface uses CPOL=0, CPHA=0 (data sampled on the rising edge of SCLK).
 
 - **Bit 15** = `1` for write, `0` for read.
 - **Bits 14:8** = 7-bit register address.
-- **Bits 7:0** = write data (writes) or don't-care (reads; MISO returns the register value).
+- **Bits 7:0** = write data
 
 Data is transmitted MSB first.
 
@@ -90,8 +90,8 @@ For example, to play a 440 Hz sawtooth on Voice 0 with instant attack and full s
 
 ```
 SPI Write: addr=0x1A, data=0xFF    # Volume = max
-SPI Write: addr=0x00, data=0xC5    # FREQ_LO = 0xC5  (FCW for 440 Hz = 0x0EC5)
-SPI Write: addr=0x01, data=0x0E    # FREQ_HI = 0x0E
+SPI Write: addr=0x00, data=0x05    # FREQ_LO = 0x05  (FCW for 440 Hz = 0x1205)
+SPI Write: addr=0x01, data=0x12    # FREQ_HI = 0x12
 SPI Write: addr=0x05, data=0x00    # AD = 0x00 (attack=0, decay=0)
 SPI Write: addr=0x06, data=0xF0    # SR = 0xF0 (sustain=15, release=0)
 SPI Write: addr=0x04, data=0x21    # CONTROL = sawtooth + gate on
