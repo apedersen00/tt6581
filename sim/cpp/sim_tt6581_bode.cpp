@@ -3,7 +3,7 @@
 //  File: sim_tt6581_bode.cpp
 //  Description: Verilator testbench for TT6581.
 //               Plays a stepped frequency sweep (20 Hz–20 kHz) through Voice 0
-//               with the filter bypassed and captures the PDM output.
+//               with a 1 kHz LP filter applied and captures the PDM output.
 //
 //  Author:
 //    - Andreas Pedersen
@@ -22,6 +22,11 @@
 
 const int CYCLES_PER_DAC = 5;         // 50 MHz / 10 MHz
 const int PDM_RATE_HZ    = 10000000;  // 10 MHz DAC rate
+const double Fs = 50000.0;
+
+#ifndef M_PI
+#    define M_PI 3.14159265358979323846
+#endif
 
 static std::ofstream g_pdm_file;
 static uint8_t  g_pdm_byte      = 0;
@@ -41,6 +46,10 @@ const uint8_t REG_AD      = 0x05;
 const uint8_t REG_SR      = 0x06;
 
 const uint8_t FILT_BASE   = 0x15;
+const uint8_t REG_F_LO    = 0x00;
+const uint8_t REG_F_HI    = 0x01;
+const uint8_t REG_Q_LO    = 0x02;
+const uint8_t REG_Q_HI    = 0x03;
 const uint8_t REG_EN_MODE = 0x04;
 const uint8_t REG_VOLUME  = 0x05;
 
@@ -105,6 +114,18 @@ void set_voice_freq(const std::unique_ptr<VerilatedContext>& ctx,
     spi_write(ctx, top, base_addr + REG_FREQ_HI, (fcw >> 8) & 0xFF);
 }
 
+// Q1.15 Coeff Calculation
+int16_t get_coeff_f(double fc) {
+    double f = 2.0 * std::sin(M_PI * fc / Fs);
+    return (int16_t)(f * 32768.0);
+}
+
+// Q4.12 Coeff Calculation
+int16_t get_coeff_q(double q) {
+    double q_damp = 1.0 / q;
+    return (int16_t)(q_damp * 4096.0);
+}
+
 int main(int argc, char** argv) {
     Verilated::mkdir("logs");
     const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
@@ -146,9 +167,18 @@ int main(int argc, char** argv) {
     spi_write(contextp, top, V1_BASE + REG_SR, 0xF0);
     spi_write(contextp, top, V1_BASE + REG_CTRL, WAVE_TRI | 0x01); 
 
-    // Volume max, filter bypassed
+    double fc = 1000.0;
+    double Q  = 0.707;
+
+    int fc_i = get_coeff_f(fc);
+    int Q_i = get_coeff_q(Q);
+
+    spi_write(contextp, top, FILT_BASE + REG_F_LO, (fc_i >> 0) & 0xFF);
+    spi_write(contextp, top, FILT_BASE + REG_F_HI, (fc_i >> 8) & 0xFF);
+    spi_write(contextp, top, FILT_BASE + REG_Q_LO, (Q_i >> 0) & 0xFF);
+    spi_write(contextp, top, FILT_BASE + REG_Q_HI, (Q_i >> 8) & 0xFF);
+    spi_write(contextp, top, FILT_BASE + REG_EN_MODE, 0b00001001);  // LP, Voice 0 routed
     spi_write(contextp, top, FILT_BASE + REG_VOLUME, 0xFF);
-    spi_write(contextp, top, FILT_BASE + REG_EN_MODE, 0x00);
 
     // Open output files
     g_pdm_file.open("tmp/bode.bin", std::ios::binary);
