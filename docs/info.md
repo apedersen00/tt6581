@@ -13,7 +13,16 @@ Inspired by the legendary MOS6581 Sound Interface Device (SID) chip used in retr
 
 All configuration is done via a 4-wire SPI interface, and the audio output is a 1-bit PDM signal at 10 MHz.
 
-### Signal chain
+### Features
+
+- Full control through a Serial-Peripheral Interface (SPI).
+- Three independently synthesized voices.
+- Four supported waveform types (triangle, sawtooth, square and noise).
+- Attack, decay, sustain, release (ADSR) envelope shaping.
+- Chamberlin State-Variable Filter (SVF) for low-pass, high-pass, band-pass and band-reject.
+- Second-order Delta-Sigma DAC.
+
+### Architecture
 
 ![TT6581 Architecture](tt6581_datapath.png)
 
@@ -29,6 +38,30 @@ All configuration is done via a 4-wire SPI interface, and the audio output is a 
 
 6. **Delta-Sigma PDM:** An error-feedback Delta-Sigma modulator converts the final mix to a 1-bit PDM output at 10 MHz (OSR = 200).
 
+### Pin Mapping
+
+The TT6581 uses the bidirectional IO pins for SPI and a single dedicated output for the PDM audio signal. All dedicated inputs are unused.
+
+| Pin        | Direction | Function                     |
+| ---------- | --------- | ---------------------------- |
+| `uio[0]`   | Input     | SPI Chip Select (active low) |
+| `uio[1]`   | Input     | SPI MOSI                     |
+| `uio[2]`   | Output    | SPI MISO                     |
+| `uio[3]`   | Input     | SPI SCLK                     |
+| `uio[4:7]` | -         | Unused                       |
+| `uo[0]`    | Output    | PDM audio output             |
+| `uo[1:7]`  | -         | Unused                       |
+| `ui[0:7]`  | -         | Unused                       |
+
+The PDM output should be passed through a 4th order Bessel filter for the best reconstruction of the analog waveform.
+
+### Programming
+
+The TT6581 is programmed in much the same way as the original MOS6581. The register layout mirrors the original SID — three voice channels followed by filter and volume registers — and the same ADSR, waveform selection and filter concepts apply. The main differences are:
+
+- Registers are accessed through an SPI interface.
+- The filter coefficients are pre-calculated and written directly as fixed-point values, rather than the raw 11-bit FC value used by the MOS6581.
+
 ### SPI Protocol
 
 CPOL=0, CPHA=0, MSB first. Each transaction is a 16-bit frame:
@@ -42,6 +75,56 @@ CPOL=0, CPHA=0, MSB first. Each transaction is a 16-bit frame:
 - **Bits 7:0** = write data.
 
 Data is transmitted MSB first.
+
+### Playing a tone
+
+1. **Set volume:** Write `0xFF` to register `0x1A` (VOLUME) for full volume.
+2. **Set frequency:** Compute the 16-bit frequency control word and write it to `FREQ_LO` / `FREQ_HI`.
+3. **Set ADSR:** Write attack/decay to `AD` and sustain/release to `SR`.
+4. **Select waveform and gate on:** Write the CONTROL register with the desired waveform bit and `GATE=1`.
+
+For example, to play a 440 Hz sawtooth on Voice 0 with instant attack and full sustain:
+
+```
+SPI Write: addr=0x1A, data=0xFF    # Volume = max
+SPI Write: addr=0x00, data=0x05    # FREQ_LO = 0x05  (FCW for 440 Hz = 0x1205)
+SPI Write: addr=0x01, data=0x12    # FREQ_HI = 0x12
+SPI Write: addr=0x05, data=0x00    # AD = 0x00 (attack=0, decay=0)
+SPI Write: addr=0x06, data=0xF0    # SR = 0xF0 (sustain=15, release=0)
+SPI Write: addr=0x04, data=0x21    # CONTROL = sawtooth + gate on
+```
+
+To release the note, write CONTROL again with `GATE=0`:
+
+```
+SPI Write: addr=0x04, data=0x20    # CONTROL = sawtooth + gate off
+```
+
+### Formulas
+
+**Frequency Control Word (FCW):**
+
+$$
+FCW = \frac{f_{\text{desired}} \times 2^{19}}{F_s}
+$$
+
+where $F_s = 50$ kHz (sample rate). The 16-bit FCW is split across `FREQ_LO` (bits 7:0) and `FREQ_HI` (bits 15:8).
+
+**Filter Cutoff Coefficient** (Q1.15 signed):
+
+$$
+\text{FCC} = \left[ 2 \cdot \sin\!\left(\frac{\pi \cdot f_c}{F_s}\right) \cdot 32768 \right]
+$$
+
+where $f_c$ is the desired cutoff frequency in Hz. The 16-bit result is split across `F_LO` and `F_HI`.
+
+**Filter Damping Coefficient** (Q4.12 signed):
+
+$$
+\text{FDC} = \left[ \frac{1}{Q} \cdot 4096 \right]
+$$
+
+where $Q$ is the desired resonance. The 16-bit result is split across `Q_LO` and `Q_HI`.
 
 ### Register map summary
 
@@ -112,7 +195,7 @@ Each voice occupies 7 consecutive registers. Voice 0 starts at `0x00`, Voice 1 a
     - Write `0x00` to `0x05` (attack=0, decay=0) and `0xF0` to `0x06` (sustain=15, release=0).
     - Write `0x21` to `0x04` (sawtooth waveform + gate on).
 
-4. You should hear a 440 Hz sawtooth tone. Write `0x20` to `0x04` to release the note.
+4. A 440 Hz sawtooth tone _should_ be playing. Write `0x20` to `0x04` to release the note.
 
 The project also includes a CocoTB test suite that runs automatically via GitHub Actions on both RTL and the synthesized gate-level netlist.
 
