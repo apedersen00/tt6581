@@ -189,7 +189,7 @@ Each voice occupies 7 consecutive registers. Voice 0 starts at `0x00`, Voice 1 a
 
 2. Connect `uo[0]` (PDM output) through a low-pass reconstruction filter (e.g. 4th-order Bessel, cutoff ≈ 20 kHz) to an amplifier or speaker.
 
-3. Program a voice — minimal example for a 440 Hz sawtooth:
+3. Program a voice. Minimal example for a 440 Hz sawtooth:
     - Write `0xFF` to `0x1A` (volume = max).
     - Write `0x05` to `0x00` and `0x12` to `0x01` (frequency control word for 440 Hz).
     - Write `0x00` to `0x05` (attack=0, decay=0) and `0xF0` to `0x06` (sustain=15, release=0).
@@ -201,6 +201,6 @@ The project also includes a CocoTB test suite that runs automatically via GitHub
 
 ## External hardware
 
-- SPI master
-- Low-pass reconstruction filter for the PDM output (e.g. passive RC or active Bessel filter, cutoff ≈ 20 kHz).
-- Audio amplifier and speaker/headphones
+- SPI master.
+- Low-pass 4th order reconstruction filter for the PDM output (Ideally Bessel).
+- Audio amplifier and speaker/headphones.
