@@ -98,3 +98,10 @@ A brief description of each testbench:
 - *mult*: Tests the 24x16 shift-add multiplier. Inputs N randomly generate operands and verifies the hardware result against software.
 
 - *envelope:* Tests the envelope generator by inputting known ADSR values with a constant wave input. Plots the produced envelope.
+
+## CocoTB
+
+Currently has three testbenches. They are automatically run as a Github Action on push. When all three tests have completed a summary is generated and stored. More importantly, these tests are also run on the synthesized gate-level netlist.
+
+- Latest test result: <LINK>
+- Latest gate-level test result: <LINK>
