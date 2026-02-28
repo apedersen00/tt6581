@@ -57,14 +57,14 @@ The PDM output should be passed through a 4th order Bessel filter for the best r
 
 ### Programming
 
-The TT6581 is programmed in much the same way as the original MOS6581. The register layout mirrors the original SID — three voice channels followed by filter and volume registers — and the same ADSR, waveform selection and filter concepts apply. The main differences are:
+The TT6581 is programmed in much the same way as the original MOS6581. The register layout mirrors the original SID, three voice channels followed by filter and volume registers and the same ADSR, waveform selection and filter concepts apply. The main differences are:
 
 - Registers are accessed through an SPI interface.
 - The filter coefficients are pre-calculated and written directly as fixed-point values, rather than the raw 11-bit FC value used by the MOS6581.
 
 ### SPI Protocol
 
-CPOL=0, CPHA=0, MSB first. Each transaction is a 16-bit frame:
+The SPI interface uses CPOL=0, CPHA=0 (data sampled on the rising edge of SCLK). Each transaction is a 16-bit frame while CS is held low:
 
 | Bit   | 15         | 14:8            | 7:0          |
 | ----- | ---------- | --------------- | ------------ |
@@ -113,7 +113,7 @@ where $F_s = 50$ kHz (sample rate). The 16-bit FCW is split across `FREQ_LO` (bi
 **Filter Cutoff Coefficient** (Q1.15 signed):
 
 $$
-\text{FCC} = \left[ 2 \cdot \sin\!\left(\frac{\pi \cdot f_c}{F_s}\right) \cdot 32768 \right]
+\text{FCC} = \left[ 2 \cdot \sin \left( \frac{\pi \cdot f_c}{F_s} \right) \cdot 32768 \right]
 $$
 
 where $f_c$ is the desired cutoff frequency in Hz. The 16-bit result is split across `F_LO` and `F_HI`.

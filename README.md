@@ -60,7 +60,7 @@ The PDM output should be passed through a 4th order Bessel filter for the best r
 
 ## Quick Start
 
-The TT6581 is programmed in much the same way as the original MOS6581. The register layout mirrors the original SID — three voice channels followed by filter and volume registers — and the same ADSR, waveform selection and filter concepts apply. The main differences are:
+The TT6581 is programmed in much the same way as the original MOS6581. The register layout mirrors the original SID, three voice channels followed by filter and volume registers and the same ADSR, waveform selection and filter concepts apply. The main differences are:
 
 - Registers are accessed through an SPI interface.
 - The filter coefficients are pre-calculated and written directly as fixed-point values, rather than the raw 11-bit FC value used by the MOS6581.
@@ -75,7 +75,7 @@ The SPI interface uses CPOL=0, CPHA=0 (data sampled on the rising edge of SCLK).
 
 - **Bit 15** = `1` for write, `0` for read.
 - **Bits 14:8** = 7-bit register address.
-- **Bits 7:0** = write data
+- **Bits 7:0** = write data.
 
 Data is transmitted MSB first.
 
