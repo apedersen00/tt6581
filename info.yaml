@@ -33,9 +33,9 @@ project:
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
 pinout:
   # Inputs
-  ui[0]: "sclk"
-  ui[1]: "rstcs_n"
-  ui[2]: "mosi"
+  ui[0]: ""
+  ui[1]: ""
+  ui[2]: ""
   ui[3]: ""
   ui[4]: ""
   ui[5]: ""
@@ -43,20 +43,20 @@ pinout:
   ui[7]: ""
 
   # Outputs
-  uo[0]: "miso"
-  uo[1]: "wave"
-  uo[2]: "wave"
-  uo[3]: "wave"
-  uo[4]: "wave"
-  uo[5]: "wave"
-  uo[6]: "wave"
-  uo[7]: "wave"
+  uo[0]: "pdm"
+  uo[1]: ""
+  uo[2]: ""
+  uo[3]: ""
+  uo[4]: ""
+  uo[5]: ""
+  uo[6]: ""
+  uo[7]: ""
 
   # Bidirectional pins
-  uio[0]: ""
-  uio[1]: ""
-  uio[2]: ""
-  uio[3]: ""
+  uio[0]: "cs_n"
+  uio[1]: "mosi"
+  uio[2]: "miso"
+  uio[3]: "sclk"
   uio[4]: ""
   uio[5]: ""
   uio[6]: ""

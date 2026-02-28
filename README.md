@@ -43,9 +43,144 @@ Above the rough diagram shows the datapath in the TT6581. A tick generator enabl
 
 ## Pin Mapping
 
+The TT6581 uses the bidirectional IO pins for SPI and a single dedicated output for the PDM audio signal. All dedicated inputs are unused.
+
+| Pin        | Direction | Function                     |
+| ---------- | --------- | ---------------------------- |
+| `uio[0]`   | Input     | SPI Chip Select (active low) |
+| `uio[1]`   | Input     | SPI MOSI                     |
+| `uio[2]`   | Output    | SPI MISO                     |
+| `uio[3]`   | Input     | SPI SCLK                     |
+| `uio[4:7]` | -         | Unused                       |
+| `uo[0]`    | Output    | PDM audio output             |
+| `uo[1:7]`  | -         | Unused (active low)          |
+| `ui[0:7]`  | -         | Unused                       |
+
+The PDM output should be passed through a 4th order Bessel filter for the best reconstruction of the analog waveform.
+
 ## Quick Start
 
+The TT6581 is programmed in much the same way as the original MOS6581. The register layout mirrors the original SID, three voice channels followed by filter and volume registers. The same ADSR, waveform selection and filter concepts apply. The main differences are:
+
+- Registers are accessed through an SPI interface.
+- The filter coefficients are pre-calculated and written directly as fixed-point alues, rather than the raw 11-bit FC value used by the MOS6581.
+
+### SPI Protocol
+
+The SPI interface uses CPOL=0, CPHA=0 (data sampled on the rising edge of SCLK). Each transaction is a 16-bit frame while CS is held low:
+
+| Bit   | 15 (first) | 14:8            | 7:0 (last)   |
+| ----- | ---------- | --------------- | ------------ |
+| Field | R/W        | Address \[6:0\] | Data \[7:0\] |
+
+- **Bit 15** = `1` for write, `0` for read.
+- **Bits 14:8** = 7-bit register address.
+- **Bits 7:0** = write data (writes) or don't-care (reads; MISO returns the register value).
+
+Data is transmitted MSB first.
+
+### Playing a tone
+
+1. **Set volume:** Write `0xFF` to register `0x1A` (VOLUME) for full volume.
+2. **Set frequency:** Compute the 16-bit frequency control word and write it to `FREQ_LO` / `FREQ_HI`.
+3. **Set ADSR:** Write attack/decay to `AD` and sustain/release to `SR`.
+4. **Select waveform and gate on:** Write the CONTROL register with the desired waveform bit and `GATE=1`.
+
+For example, to play a 440 Hz sawtooth on Voice 0 with instant attack and full sustain:
+
+```
+SPI Write: addr=0x1A, data=0xFF    # Volume = max
+SPI Write: addr=0x00, data=0xC5    # FREQ_LO = 0xC5  (FCW for 440 Hz = 0x0EC5)
+SPI Write: addr=0x01, data=0x0E    # FREQ_HI = 0x0E
+SPI Write: addr=0x05, data=0x00    # AD = 0x00 (attack=0, decay=0)
+SPI Write: addr=0x06, data=0xF0    # SR = 0xF0 (sustain=15, release=0)
+SPI Write: addr=0x04, data=0x21    # CONTROL = sawtooth + gate on
+```
+
+To release the note, write CONTROL again with `GATE=0`:
+
+```
+SPI Write: addr=0x04, data=0x20    # CONTROL = sawtooth + gate off
+```
+
+### Formulas
+
+**Frequency Control Word (FCW):**
+
+$$
+FCW = \frac{f_{\text{desired}} \times 2^{19}}{F_s}
+$$
+
+where $F_s = 50$ kHz (sample rate). The 16-bit FCW is split across `FREQ_LO` (bits 7:0) and `FREQ_HI` (bits 15:8).
+
+**Filter Cutoff Coefficient** (Q1.15 signed):
+
+$$
+\text{FCC} = \left[ 2 \cdot \sin\!\left(\frac{\pi \cdot f_c}{F_s}\right) \cdot 32768 \right]
+$$
+
+where $f_c$ is the desired cutoff frequency in Hz. The 16-bit result is split across `F_LO` and `F_HI`.
+
+**Filter Damping Coefficient** (Q4.12 signed):
+
+$$
+\text{FDC} = \left[ \frac{1}{Q} \cdot 4096 \right]
+$$
+
+where $Q$ is the desired resonance. The 16-bit result is split across `Q_LO` and `Q_HI`.
+
 ## Register Map
+
+The TT6581 has a 7-bit address space (128 registers). Three identical voice register groups are followed by a filter/volume group.
+
+The full register map is described in `regs.yaml`.
+
+### Voice Registers
+
+Each voice occupies 7 consecutive registers. Voice 0 starts at `0x00`, Voice 1 at `0x07`, and Voice 2 at `0x0E`.
+
+| Offset | Name    | Bits | Description                        |
+| ------ | ------- | ---- | ---------------------------------- |
+| 0x00   | FREQ_LO | 7:0  | Frequency control word - low byte  |
+| 0x01   | FREQ_HI | 7:0  | Frequency control word - high byte |
+| 0x02   | PW_LO   | 7:0  | Pulse width - low byte             |
+| 0x03   | PW_HI   | 3:0  | Pulse width - high byte            |
+| 0x04   | CONTROL | 7:0  | Waveform select and voice control  |
+| 0x05   | AD      | 7:0  | Attack (7:4) / Decay (3:0)         |
+| 0x06   | SR      | 7:0  | Sustain (7:4) / Release (3:0)      |
+
+**CONTROL register bit fields:**
+
+| Bit | Name     | Description                    |
+| --- | -------- | ------------------------------ |
+| 7   | NOISE    | Select noise waveform          |
+| 6   | PULSE    | Select pulse (square) waveform |
+| 5   | SAW      | Select sawtooth waveform       |
+| 4   | TRI      | Select triangle waveform       |
+| 3   | -        | Reserved                       |
+| 2   | RING_MOD | Enable ring modulation         |
+| 1   | SYNC     | Enable oscillator sync         |
+| 0   | GATE     | Gate (1 = attack, 0 = release) |
+
+### Filter and Volume Registers
+
+| Address | Name    | Bits | Description                            |
+| ------- | ------- | ---- | -------------------------------------- |
+| 0x15    | F_LO    | 7:0  | Filter cutoff coefficient - low byte   |
+| 0x16    | F_HI    | 7:0  | Filter cutoff coefficient - high byte  |
+| 0x17    | Q_LO    | 7:0  | Filter damping coefficient - low byte  |
+| 0x18    | Q_HI    | 7:0  | Filter damping coefficient - high byte |
+| 0x19    | EN_MODE | 5:0  | Filter enable and mode select          |
+| 0x1A    | VOLUME  | 7:0  | Global volume (0x00–0xFF)              |
+
+**EN_MODE bit fields:**
+
+| Bit | Name    | Description                                         |
+| --- | ------- | --------------------------------------------------- |
+| 5   | FILT_V2 | Route Voice 2 through filter                        |
+| 4   | FILT_V1 | Route Voice 1 through filter                        |
+| 3   | FILT_V0 | Route Voice 0 through filter                        |
+| 2:0 | MODE    | Filter mode: `001`=LP, `010`=BP, `100`=HP, `101`=BR |
 
 ## Building and Testing
 
@@ -99,9 +234,11 @@ A brief description of each testbench:
 
 - *envelope:* Tests the envelope generator by inputting known ADSR values with a constant wave input. Plots the produced envelope.
 
-## CocoTB
+### CocoTB
 
 Currently has three testbenches. They are automatically run as a Github Action on push. When all three tests have completed a summary is generated and stored. More importantly, these tests are also run on the synthesized gate-level netlist.
 
-- Latest test result: <LINK>
-- Latest gate-level test result: <LINK>
+*Latest Succesful Runs:*
+
+- [Latest test results](https://github.com/apedersen00/tt6581/actions/workflows/test.yaml?query=is%3Asuccess)
+- [Latest gate-level test results](https://github.com/apedersen00/tt6581/actions/workflows/gds.yaml?query=is%3Asuccess)
