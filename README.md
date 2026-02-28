@@ -108,7 +108,7 @@ SPI Write: addr=0x04, data=0x20    # CONTROL = sawtooth + gate off
 **Frequency Control Word (FCW):**
 
 $$
-FCW = \frac{f_{\text{desired}} \times 2^{19}}{F_s}
+FCW = \frac{f_{\text{desired}} \cdot 2^{19}}{F_s}
 $$
 
 where $F_s = 50$ kHz (sample rate). The 16-bit FCW is split across `FREQ_LO` (bits 7:0) and `FREQ_HI` (bits 15:8).
@@ -116,7 +116,7 @@ where $F_s = 50$ kHz (sample rate). The 16-bit FCW is split across `FREQ_LO` (bi
 The maximum representable voice frequency is limited by the 16-bit FCW:
 
 $$
-f_{\max} = \frac{65535 \times F_s}{2^{19}} \approx 6250 \text{ Hz}
+f_{\max} = \frac{65535 \cdot F_s}{2^{19}} \approx 6250 \text{ Hz}
 $$
 
 **Filter Cutoff Coefficient** (Q1.15 signed):
