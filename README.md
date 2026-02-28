@@ -1,44 +1,49 @@
-![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
+![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg)
 
-# Tiny Tapeout Verilog Project Template
+# TT6581
 
-## Notes
+Inspired by the legendary MOS6581 Sound Interface Device (SID) chip used in retro computers such as the Commodore 64, the _Tiny Tapeout_ 6581 (TT6581) is a completely digital interpretation supporting nearly the entire original MOS6581 feature set implemeted in 2x2 tiles for Tiny Tapeout.
 
-The stable version of icarus verilog (iverilog) _CAN NOT_ simulate the gate level netlist. Build and install from source.
 
-## What is Tiny Tapeout?
 
-Tiny Tapeout is an educational project that aims to make it easier and cheaper than ever to get your digital and analog designs manufactured on a real chip.
+## Features
 
-To learn more and get started, visit https://tinytapeout.com.
+- Full control through a Serial-Peripheral Interface (SPI).
+- Three independently synthesized voices.
+- Four supported waveform types (triangle, sawtooth, square and noise).
+- Attack, decay, sustain, release (ADSR) envelope shaping.
+- Chamberlin State-Variable Filter (SVF) for low-pass, high-pass, band-pass and band-reject.
+- Second-order Delta-Sigma DAC.
 
-## Set up your Verilog project
+## Architecture
 
-1. Add your Verilog files to the `src` folder.
-2. Edit the [info.yaml](info.yaml) and update information about your project, paying special attention to the `source_files` and `top_module` properties. If you are upgrading an existing Tiny Tapeout project, check out our [online info.yaml migration tool](https://tinytapeout.github.io/tt-yaml-upgrade-tool/).
-3. Edit [docs/info.md](docs/info.md) and add a description of your project.
-4. Adapt the testbench to your design. See [test/README.md](test/README.md) for more information.
+![TT6581 Architecture](media/tt6581_datapath.png)
 
-The GitHub action will automatically build the ASIC files using [LibreLane](https://www.zerotoasiccourse.com/terminology/librelane/).
+Above the rough diagram shows the datapath in the TT6581. A tick generator enables the generation of a single audio sample.
 
-## Enable GitHub actions to build the results page
+1. *Voice Generation:* One 10-bit voice at a time is generated. Internal phase registers keep track of each voice's state while inactive. The frequency and waveform type is set by the programmed values in the register file.
 
-- [Enabling GitHub Pages](https://tinytapeout.com/faq/#my-github-action-is-failing-on-the-pages-part)
+2. *Envelope:* An envelope value from 255 (max) to 0 (min) is generated and applied to each voice one at a time by multiplication.
 
-## Resources
+3. *Wave Accumulation:* The three voices are accumulated (mixed) by addition. Depending on the filter enable bit of each voice, they are accumulated in one of two registers: one that will be passed through the SVF, and one that will bypass it.
 
-- [FAQ](https://tinytapeout.com/faq/)
-- [Digital design lessons](https://tinytapeout.com/digital_design/)
-- [Learn how semiconductors work](https://tinytapeout.com/siliwiz/)
-- [Join the community](https://tinytapeout.com/discord)
-- [Build your design locally](https://www.tinytapeout.com/guides/local-hardening/)
+4. *Filter:*  The SVF is applied to the voices with filtering enabled. The filter is a Chamberlin State-Variable Filter and produce a low-pass, high-pass, band-pass or band-reject filter depending on configuration. Both cut-off frequency and resonance (Q) are tuneable. Running the filter on one sample requires three multiplications.
 
-## What next?
+5. *Global Volume:* The SVF output is summed with the voices in the bypass accumulator. A global 8-bit volume is applied by multiplication. The result is the final mix.
 
-- [Submit your design to the next shuttle](https://app.tinytapeout.com/).
-- Edit [this README](README.md) and explain your design, how it works, and how to test it.
-- Share your project on your social network of choice:
-  - LinkedIn [#tinytapeout](https://www.linkedin.com/search/results/content/?keywords=%23tinytapeout) [@TinyTapeout](https://www.linkedin.com/company/100708654/)
-  - Mastodon [#tinytapeout](https://chaos.social/tags/tinytapeout) [@matthewvenn](https://chaos.social/@matthewvenn)
-  - X (formerly Twitter) [#tinytapeout](https://twitter.com/hashtag/tinytapeout) [@tinytapeout](https://twitter.com/tinytapeout)
-  - Bluesky [@tinytapeout.com](https://bsky.app/profile/tinytapeout.com)
+6. *Delta-Sigma PDM:* A Error-Feedback Delta-Sigma modulator produces a 1-bit PDM output. The modulator runs at 10 MHz for an Oversampling-Rate (OSR) of 200.
+
+## Pin Mapping
+
+## Quick Start
+
+## Register Map
+
+## Building and Testing
+
+The project contains two separate testbench environments:
+
+1. C++ testbenches for Verilator
+2. CocoTB testbenches
+
+The C++ Verilator testbenches are significantly faster and was the main tool for verification during development. 
