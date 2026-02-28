@@ -4,7 +4,7 @@
 
 Inspired by the legendary MOS6581 Sound Interface Device (SID) chip used in retro computers such as the Commodore 64, the _Tiny Tapeout_ 6581 (TT6581) is a completely digital interpretation supporting nearly the entire original MOS6581 feature set implemeted in 2x2 tiles for Tiny Tapeout.
 
-[monty_on_the_run.mp4](media/monty_on_the_run.mp4)
+https://github.com/user-attachments/assets/aede3a49-307a-4b56-abea-9a842e0d1250
 
 ## Features
 
