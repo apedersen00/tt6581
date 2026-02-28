@@ -29,6 +29,8 @@ jobs:
   gl_test:
     needs: gds
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - name: checkout repo
         uses: actions/checkout@v4
@@ -37,6 +39,42 @@ jobs:
 
       - name: GL test
         uses: TinyTapeout/tt-gds-action/gl_test@ttihp26a
+
+      - name: Install summary dependencies
+        if: always()
+        run: pip install matplotlib numpy
+
+      - name: Push plots to artifact branch
+        if: always()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          mkdir -p plots_deploy
+          cd plots_deploy
+          git init
+          git checkout --orphan gl-test-artifacts
+
+          mkdir -p tmp
+          cp ../test/tmp/*.png ./tmp/ || true
+
+          git add tmp/
+          git commit -m "Update test plots for run ${{ github.run_id }} [skip ci]" || true
+          git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gl-test-artifacts
+
+      - name: Generate summary
+        if: always()
+        working-directory: test
+        env:
+          ARTIFACT_BRANCH: gl-test-artifacts
+        run: python gen_summary.py
+
+      - name: Upload test plots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gl-test-plots
+          path: test/tmp/*
 
   viewer:
     needs: gds

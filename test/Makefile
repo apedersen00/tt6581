@@ -2,22 +2,24 @@
 # See https://docs.cocotb.org/en/stable/quickstart.html for more info
 
 # defaults
-SIM ?= icarus
-FST ?= -fst # Use more efficient FST format
+FST ?= -fst
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = project.v
+PROJECT_SOURCES = controller.sv delta_sigma.sv envelope.sv mult.sv multi_voice.sv reg_file.sv spi.sv svf.sv tick_gen.sv top.sv tt6581.sv
+
+# Default to icarus (safe: no parse-time version check).
+# RTL sim overrides this via SIM=verilator on the make command line.
+SIM ?= icarus
 
 ifneq ($(GATES),yes)
-
 # RTL simulation:
-SIM_BUILD				= sim_build/rtl
+SIM_BUILD		 = sim_build/rtl
 VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
 
 else
 
-# Gate level simulation:
-SIM_BUILD				= sim_build/gl
+# Gate level simulation (always icarus):
+SIM_BUILD	     = sim_build/gl
 COMPILE_ARGS    += -DGL_TEST
 COMPILE_ARGS    += -DFUNCTIONAL
 COMPILE_ARGS    += -DSIM
