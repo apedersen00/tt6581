@@ -30,7 +30,7 @@ module tick_gen (
       cnt    <= 0;
       tick_o <= 0;
     end else begin
-      if (cnt == 10'd499) begin
+      if (cnt == 10'd999) begin
         cnt    <= 0;
         tick_o <= 1'b1;
       end else begin
