@@ -86,6 +86,12 @@ $(filter-out core,$(TARGETS)): %:
 		cd scripts && uv run svf.py; \
 	fi
 
+	@if [ "$@" = "delta_sigma" ]; then \
+		echo; \
+		echo "-- PLOT $@ --------------------"; \
+		cd scripts && uv run delta_sigma.py; \
+	fi
+
 	@if [ "$@" = "tt6581" ]; then \
 		echo; \
 		echo "-- PLOT $@ --------------------"; \
