@@ -57,7 +57,7 @@ module delta_sigma (
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni)            audio <= '0;
-    else if (audio_valid_i) audio <= {{4{audio_i[13]}}, audio_i, 1'b0};
+    else if (audio_valid_i) audio <= {{2{audio_i[13]}}, audio_i, 3'b0};
   end
 
   /************************************
