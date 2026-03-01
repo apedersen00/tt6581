@@ -4,6 +4,8 @@
 
 Inspired by the legendary MOS6581 Sound Interface Device (SID) chip used in retro computers such as the Commodore 64, the _Tiny Tapeout_ 6581 (TT6581) is a original digital interpretation supporting nearly the entire original MOS6581 feature set, implemented in 2x2 tiles for Tiny Tapeout.
 
+For a detailed write-up, see the [project page](https://andreaspedersen.com/projects/tt6581/).
+
 As a demonstration, here are two songs that **are produced by RTL testbenches**:
 
 1. **Port of _Monty on the Run_ by Rob Hubbard** (`sim_tt6581_player.cpp`)
