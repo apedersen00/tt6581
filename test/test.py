@@ -153,11 +153,11 @@ async def test_envelopes(dut):
                           attack=atk, decay=dec,
                           sustain=sus, release=rel)
 
-        # Gate ON — capture attack/decay/sustain phase
+        # Gate ON
         await gate_on(dut, V0_BASE, WAVE_SAW)
         on_samples = await capture_audio(dut, num_samples=gate_samps)
 
-        # Gate OFF — capture release phase
+        # Gate OFF
         await gate_off(dut, V0_BASE, WAVE_SAW)
         off_samples = await capture_audio(dut, num_samples=rel_samps)
 

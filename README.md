@@ -257,5 +257,5 @@ Currently has three testbenches. They are automatically run as a GitHub Action o
 
 ## References
 
-- **Musical Applications of Microprocessors** — Hal Chamberlin. Source for the State-Variable Filter (SVF).
-- **Understanding Delta-Sigma Data Converters** — Richard Schreier, Gabor C. Temes. Source for the error-feedback Delta-Sigma modulator.
+- **Musical Applications of Microprocessors:** Hal Chamberlin. Source for the State-Variable Filter (SVF).
+- **Understanding Delta-Sigma Data Converters:** Richard Schreier, Gabor C. Temes. Source for the error-feedback Delta-Sigma modulator.

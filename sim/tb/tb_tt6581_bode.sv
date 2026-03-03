@@ -37,7 +37,6 @@ module tb_tt6581_bode (
         $dumpvars();
       end
 
-      $display("[%0t] SID Player Testbench — Starting simulation...", $time);
     end
 
 endmodule
