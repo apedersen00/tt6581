@@ -1686,7 +1686,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "4110R"
 			(at 138.43 80.01 90)
 			(effects
 				(font
@@ -2028,7 +2028,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "5110R"
 			(at 153.67 80.01 90)
 			(effects
 				(font
@@ -2163,7 +2163,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "2870R"
 			(at 137.16 130.81 90)
 			(effects
 				(font
@@ -2517,7 +2517,7 @@
 				)
 			)
 		)
-		(property "Value" "R"
+		(property "Value" "2870R"
 			(at 152.4 130.81 90)
 			(effects
 				(font
@@ -2720,7 +2720,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "C"
+		(property "Value" "1n"
 			(at 165.1 90.1699 0)
 			(effects
 				(font
@@ -2935,15 +2935,15 @@
 		(dnp no)
 		(uuid "f1c6990b-df42-4df7-bb09-2003cd08da30")
 		(property "Reference" "C2"
-			(at 164.338 72.136 90)
+			(at 164.846 67.818 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
 		)
-		(property "Value" "C"
-			(at 157.734 71.628 90)
+		(property "Value" "1.1n"
+			(at 165.608 71.882 90)
 			(effects
 				(font
 					(size 1.27 1.27)
